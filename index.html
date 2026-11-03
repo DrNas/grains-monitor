@@ -162,6 +162,7 @@ footer a{color:inherit}
     <h2>Livestock</h2>
     <p class="sub">Cash cattle, boxed beef, hogs and pork from USDA Livestock Mandatory Reporting, plus estimated federally inspected slaughter. Cutout over cash = packers have margin to buy; slaughter below last year = tighter supply. Prices in $/cwt.</p>
     <div class="grid g2" id="price-cards"></div>
+    <div class="grid g2" id="mp-cards" style="margin-top:10px"></div>
     <div class="grid g2" id="meat-cards" style="margin-top:10px"></div>
   </section>
 
@@ -357,6 +358,61 @@ function renderLivestockPrices() {
     options: lineOpts('$/cwt')});
 }
 
+
+/* ---------- packer margins & planned slaughter ---------- */
+function marginRow(lbl, ser, days, note) {
+  const L = lastOK(ser, 'perHead'); if (!L) return `<tr><td>${lbl}</td><td class="n" colspan="5">—</td><td></td></tr>`;
+  const upto = ser.slice(0, ser.indexOf(L) + 1);
+  const prev = days[0] === 1 ? upto.at(-2)?.perHead : back(upto, days[0], 'perHead');
+  const ch = [prev, back(upto, days[1], 'perHead'), back(upto, days[2], 'perHead')].map(o => ok(o) ? L.perHead - o : null);
+  return `<tr><td>${lbl}</td><td class="n"><b class="${cls(L.perHead)}">${fmtS(L.perHead)}</b></td><td class="n">${fmtS(L.perCwt, 2)}</td><td class="n ${cls(ch[0])}">${fmtS(ch[0])}</td><td class="n ${cls(ch[1])}">${fmtS(ch[1])}</td><td class="n ${cls(ch[2])}">${fmtS(ch[2])}</td><td class="muted">${note(L)}</td></tr>`;
+}
+function renderMarginsPlanned() {
+  const L = D('livestock'), M = L?.margins;
+  if (!L) return noData($('#mp-cards'), 'livestock');
+  const hs = L.hogSched, cc = L.cattleCommit || [];
+  const cL = cc.at(-1);
+  const sched = (lbl, a, b) => ok(a?.head) ? `<td class="n ${cls(pctCh(a.head, b?.head))}">${pc(pctCh(a.head, b?.head))}</td>` : '<td class="n">—</td>';
+  $('#mp-cards').innerHTML = `
+    <div class="card"><div class="ct">Packer gross margins</div><div class="tw"><table>
+      <thead><tr><th></th><th class="n">$/head</th><th class="n">$/cwt</th><th class="n">vs prev</th><th class="n">vs 4 wk</th><th class="n">vs yr ago</th><th></th></tr></thead><tbody>
+      ${M ? marginRow('Beef (weekly)', M.beef, [7, 28, 364], x => `wk of ${dLabel(x.d)}: cutout ${x.cutout.toFixed(2)} + drop ${x.drop.toFixed(2)} − steers ${x.cattle.toFixed(2)} · ${fmtN(x.wt)} lb`) : ''}
+      ${M ? marginRow('Pork (daily)', M.pork, [1, 28, 364], x => `${dLabel(x.d)}: cutout ${x.cutout.toFixed(2)} + drop ${x.drop.toFixed(2)} − hogs ${x.hog.toFixed(2)} · ${fmtN(x.wt)} lb`) : ''}
+      </tbody></table></div>
+      <div class="cs" style="margin-top:2px">Gross margin = what the carcass and by-products are worth minus what the packer paid, before kill and processing costs, which are not public, so compare it with its own history rather than read it as profit. Beef: Choice cutout + steer drop − 5-area dressed steer price, the week the cattle traded. Pork: pork cutout + hog drop − net price of all producer-sold hogs that day. All $/cwt carcass; per head uses USDA's average carcass weight.</div>
+      ${M ? '' : `<div class="empty">Margins unavailable${S('livestock').note ? ': ' + esc(S('livestock').note) : ''}.</div>`}
+      <div class="cb"><canvas id="mp-margin"></canvas></div></div>
+    <div class="card"><div class="ct">Planned slaughter</div><div class="tw"><table>
+      <thead><tr><th></th><th class="n">head</th><th class="n">vs wk ago</th><th class="n">vs yr ago</th><th></th></tr></thead><tbody>
+      ${hs ? `<tr><td>Hogs scheduled, next 7 days</td><td class="n"><b>${fmtN(hs.next7.head)}</b></td>${sched('', hs.next7, hs.next7Wk)}${sched('', hs.next7, hs.next7Yr)}<td class="muted">${dLabel(hs.next7.from)}–${dLabel(hs.next7.to)}, report ${dLabel(hs.report)}</td></tr>` : ''}
+      ${cL ? `<tr><td>Cattle committed</td><td class="n"><b>${fmtN(cL.c)}</b></td><td class="n ${cls(pctCh(cL.c, cL.cWk))}">${pc(pctCh(cL.c, cL.cWk))}</td><td class="n ${cls(pctCh(cL.c, cL.cYr))}">${pc(pctCh(cL.c, cL.cYr))}</td><td class="muted">bought for upcoming delivery · ${dLabel(cL.d)}</td></tr>
+      <tr><td>Cattle delivered</td><td class="n">${fmtN(cL.del)}</td><td class="n ${cls(pctCh(cL.del, cL.delWk))}">${pc(pctCh(cL.del, cL.delWk))}</td><td class="n ${cls(pctCh(cL.del, cL.delYr))}">${pc(pctCh(cL.del, cL.delYr))}</td><td class="muted">to packers that day</td></tr>` : ''}
+      </tbody></table></div>
+      <div class="cs" style="margin-top:2px">Hogs: head already lined up for delivery to packers (packer-owned and contracted), by day, from USDA's daily hog report. Cattle: fed cattle packers committed to buy and took delivery of, from USDA's daily committed-and-delivered report. Week- and year-ago figures are USDA's own comparisons.</div>
+      <div class="cb sm"><canvas id="mp-hogs"></canvas></div><div class="cb sm"><canvas id="mp-cattle"></canvas></div></div>`;
+  const yr = s => { const c = new Date(); c.setFullYear(c.getFullYear() - 1); const cs = c.toISOString().slice(0, 10); return s.filter(x => x.d >= cs); };
+  const xTicks = fmt => ({ticks: {maxTicksLimit: 7, callback(v) { return dLabel(this.getLabelForValue(v), fmt); }}, grid: {display: false}});
+  if (M) {
+    const pk = yr(M.pork), bm = new Map(M.beef.map(x => [x.d, x.perHead]));
+    mkChart('mp-margin', {type: 'line', data: {labels: pk.map(x => x.d), datasets: [
+      {label: 'Beef $/head (weekly)', data: pk.map(x => bm.get(x.d) ?? null), borderColor: css('--orange'), backgroundColor: css('--orange'), pointRadius: 2, borderWidth: 1.5, spanGaps: true},
+      {label: 'Pork $/head (daily)', data: pk.map(x => x.perHead), borderColor: css('--purple'), pointRadius: 0, borderWidth: 1.5, yAxisID: 'y2'}]},
+      options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
+        plugins: {tooltip: {callbacks: {title: it => dLabel(it[0].label, {month: 'short', day: 'numeric', year: 'numeric'}), label: c => ok(c.parsed.y) ? `${c.dataset.label}: ${fmtS(c.parsed.y)}` : null}}},
+        scales: {x: xTicks({month: 'short', year: '2-digit'}), y: {title: {display: true, text: 'beef $/head'}}, y2: {position: 'right', grid: {display: false}, title: {display: true, text: 'pork $/head'}}}}});
+  }
+  if (hs) mkChart('mp-hogs', {type: 'bar', data: {labels: hs.days.map(x => x.d), datasets: [{label: 'Hogs scheduled', data: hs.days.map(x => x.head), backgroundColor: css('--purple') + 'aa'}]},
+    options: {maintainAspectRatio: false, plugins: {legend: {display: false}, tooltip: {callbacks: {title: it => dLabel(it[0].label, {weekday: 'short', month: 'short', day: 'numeric'}), label: c => `scheduled: ${fmtN(c.parsed.y)} head`}}},
+      scales: {x: xTicks({weekday: 'short', day: 'numeric'}), y: {ticks: {callback: v => fmtK(v)}, title: {display: true, text: 'hogs, next 14 days'}}}}});
+  if (cc.length) mkChart('mp-cattle', {type: 'line', data: {labels: cc.map(x => x.d), datasets: [
+    {label: 'Committed', data: cc.map(x => x.c), borderColor: css('--orange'), pointRadius: 0, borderWidth: 1.5},
+    {label: 'Delivered', data: cc.map(x => x.del), borderColor: css('--cyan'), pointRadius: 0, borderWidth: 1.5},
+    {label: 'Committed, yr ago', data: cc.map(x => x.cYr), borderColor: css('--grey'), borderDash: [4, 3], pointRadius: 0, borderWidth: 1}]},
+    options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
+      plugins: {tooltip: {callbacks: {title: it => dLabel(it[0].label, {weekday: 'short', month: 'short', day: 'numeric'}), label: c => ok(c.parsed.y) ? `${c.dataset.label}: ${fmtN(c.parsed.y)}` : null}}},
+      scales: {x: xTicks({month: 'short', day: 'numeric'}), y: {ticks: {callback: v => fmtK(v)}, title: {display: true, text: 'cattle, head/day'}}}}});
+}
+
 /* ---------- livestock ---------- */
 function renderMeat() {
   const sl = D('slaughter'); if (!sl) return noData($('#meat-cards'), 'slaughter');
@@ -499,7 +555,13 @@ function renderGlance() {
     const b = lastOK(LV.beef, 'choice'); if (b) parts.push(`Choice cutout $${b.choice.toFixed(2)}`);
     const h = lastOK(LV.hogs, 'lhi'); if (h) { const p = back(LV.hogs.slice(0, LV.hogs.indexOf(h) + 1), 7, 'lhi'); parts.push(`Lean Hog Index (calc.) $${h.lhi.toFixed(2)}${ok(p) ? ` (<span class="${cls(h.lhi - p)}">${fmtS(h.lhi - p, 2)}</span> wk)` : ''}`); }
     const k = lastOK(LV.pork, 'carcass'); if (k) parts.push(`pork cutout $${k.carcass.toFixed(2)}`);
-    if (parts.length) out.push(`<b>Cash livestock:</b> ${parts.join(', ')}.`); }
+    if (parts.length) out.push(`<b>Cash livestock:</b> ${parts.join(', ')}.`);
+    const m = LV.margins, mp = [];
+    if (m) { const b = lastOK(m.beef, 'perHead'), p = lastOK(m.pork, 'perHead');
+      if (b) mp.push(`beef ${fmtS(b.perHead)}/head (wk of ${dLabel(b.d)})`); if (p) mp.push(`pork ${fmtS(p.perHead)}/head`); }
+    const hs = LV.hogSched; if (hs?.next7Yr) mp.push(`hogs scheduled next 7 days <span class="${cls(pctCh(hs.next7.head, hs.next7Yr.head))}">${pc(pctCh(hs.next7.head, hs.next7Yr.head))}</span> vs yr ago`);
+    const cc = LV.cattleCommit?.at(-1); if (cc && ok(cc.cYr)) mp.push(`cattle committed <span class="${cls(pctCh(cc.c, cc.cYr))}">${pc(pctCh(cc.c, cc.cYr))}</span> vs yr ago`);
+    if (mp.length) out.push(`<b>Packer gross margins &amp; pipeline:</b> ${mp.join(', ')}.`); }
   const st = D('basis')?.states || [];
   for (const com of ['Corn', 'Soybeans']) {
     const mv = st.map(s => ({s, x: s.summary[com]})).filter(o => ok(o.x?.wk) && o.s.st.length === 2).sort((a, b) => Math.abs(b.x.wk) - Math.abs(a.x.wk)).slice(0, 3);
@@ -546,7 +608,7 @@ async function boot() {
   for (const u of urls) { try { const r = await fetch(u + '?t=' + Math.floor(Date.now() / 3e5)); if (r.ok) { SNAP = await r.json(); break; } } catch (e) {} }
   if (!SNAP) { $('#stamp').textContent = 'could not load data/latest.json'; return; }
   renderStatus();
-  for (const f of [renderGlance, renderVideo, renderCalendar, renderCOT, renderLivestockPrices, renderMeat, renderBasis, renderWeather, renderDrought]) {
+  for (const f of [renderGlance, renderVideo, renderCalendar, renderCOT, renderLivestockPrices, renderMarginsPlanned, renderMeat, renderBasis, renderWeather, renderDrought]) {
     try { f(); } catch (e) { console.error(f.name, e); }
   }
 }
