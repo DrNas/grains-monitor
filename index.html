@@ -361,11 +361,11 @@ function renderLivestockPrices() {
 
 /* ---------- packer margins & planned slaughter ---------- */
 function marginRow(lbl, ser, days, note) {
-  const L = lastOK(ser, 'perHead'); if (!L) return `<tr><td>${lbl}</td><td class="n" colspan="5">—</td><td></td></tr>`;
+  const L = lastOK(ser, 'spread'); if (!L) return `<tr><td>${lbl}</td><td class="n" colspan="4">—</td><td></td></tr>`;
   const upto = ser.slice(0, ser.indexOf(L) + 1);
-  const prev = days[0] === 1 ? upto.at(-2)?.perHead : back(upto, days[0], 'perHead');
-  const ch = [prev, back(upto, days[1], 'perHead'), back(upto, days[2], 'perHead')].map(o => ok(o) ? L.perHead - o : null);
-  return `<tr><td>${lbl}</td><td class="n"><b class="${cls(L.perHead)}">${fmtS(L.perHead)}</b></td><td class="n">${fmtS(L.perCwt, 2)}</td><td class="n ${cls(ch[0])}">${fmtS(ch[0])}</td><td class="n ${cls(ch[1])}">${fmtS(ch[1])}</td><td class="n ${cls(ch[2])}">${fmtS(ch[2])}</td><td class="muted">${note(L)}</td></tr>`;
+  const prev = days[0] === 1 ? upto.at(-2)?.spread : back(upto, days[0], 'spread');
+  const ch = [prev, back(upto, days[1], 'spread'), back(upto, days[2], 'spread')].map(o => ok(o) ? L.spread - o : null);
+  return `<tr><td>${lbl}</td><td class="n"><b class="${cls(L.spread)}">${fmtS(L.spread, 2)}</b></td><td class="n ${cls(ch[0])}">${fmtS(ch[0], 2)}</td><td class="n ${cls(ch[1])}">${fmtS(ch[1], 2)}</td><td class="n ${cls(ch[2])}">${fmtS(ch[2], 2)}</td><td class="muted">${note(L)}</td></tr>`;
 }
 function renderMarginsPlanned() {
   const L = D('livestock'), M = L?.margins;
@@ -374,12 +374,12 @@ function renderMarginsPlanned() {
   const cL = cc.at(-1);
   const sched = (lbl, a, b) => ok(a?.head) ? `<td class="n ${cls(pctCh(a.head, b?.head))}">${pc(pctCh(a.head, b?.head))}</td>` : '<td class="n">—</td>';
   $('#mp-cards').innerHTML = `
-    <div class="card"><div class="ct">Packer gross margins</div><div class="tw"><table>
-      <thead><tr><th></th><th class="n">$/head</th><th class="n">$/cwt</th><th class="n">vs prev</th><th class="n">vs 4 wk</th><th class="n">vs yr ago</th><th></th></tr></thead><tbody>
-      ${M ? marginRow('Beef (weekly)', M.beef, [7, 28, 364], x => `wk of ${dLabel(x.d)}: cutout ${x.cutout.toFixed(2)} + drop ${x.drop.toFixed(2)} − steers ${x.cattle.toFixed(2)} · ${fmtN(x.wt)} lb`) : ''}
-      ${M ? marginRow('Pork (daily)', M.pork, [1, 28, 364], x => `${dLabel(x.d)}: cutout ${x.cutout.toFixed(2)} + drop ${x.drop.toFixed(2)} − hogs ${x.hog.toFixed(2)} · ${fmtN(x.wt)} lb`) : ''}
+    <div class="card"><div class="ct">Packer margin (cutout − cash)</div><div class="tw"><table>
+      <thead><tr><th></th><th class="n">$/cwt</th><th class="n">vs prev</th><th class="n">vs 4 wk</th><th class="n">vs yr ago</th><th></th></tr></thead><tbody>
+      ${M ? marginRow('Pork (daily)', M.porkSpread, [1, 28, 364], x => `${dLabel(x.d)}: cutout ${x.cutout.toFixed(2)} − negotiated hogs ${x.hog.toFixed(2)}`) : ''}
+      ${M ? marginRow('Beef (weekly)', M.beefSpread, [7, 28, 364], x => `wk of ${dLabel(x.d)}: Choice ${x.cutout.toFixed(2)} − dressed steers ${x.cattle.toFixed(2)}`) : ''}
       </tbody></table></div>
-      <div class="cs" style="margin-top:2px">Gross margin = what the carcass and by-products are worth minus what the packer paid, before kill and processing costs, which are not public, so compare it with its own history rather than read it as profit. Beef: Choice cutout + steer drop − 5-area dressed steer price, the week the cattle traded. Pork: pork cutout + hog drop − net price of all producer-sold hogs that day. All $/cwt carcass; per head uses USDA's average carcass weight.</div>
+      <div class="cs" style="margin-top:2px">Pork: pork cutout minus the national negotiated hog price for the same slaughter day. Beef: Choice cutout (averaged over the week the cattle traded) minus the 5-area weekly dressed steer price. Both $/cwt carcass, before by-products and kill costs: a widening spread means packers are making more per head and can bid up for animals.</div>
       ${M ? '' : `<div class="empty">Margins unavailable${S('livestock').note ? ': ' + esc(S('livestock').note) : ''}.</div>`}
       <div class="cb"><canvas id="mp-margin"></canvas></div></div>
     <div class="card"><div class="ct">Planned slaughter</div><div class="tw"><table>
@@ -393,13 +393,13 @@ function renderMarginsPlanned() {
   const yr = s => { const c = new Date(); c.setFullYear(c.getFullYear() - 1); const cs = c.toISOString().slice(0, 10); return s.filter(x => x.d >= cs); };
   const xTicks = fmt => ({ticks: {maxTicksLimit: 7, callback(v) { return dLabel(this.getLabelForValue(v), fmt); }}, grid: {display: false}});
   if (M) {
-    const pk = yr(M.pork), bm = new Map(M.beef.map(x => [x.d, x.perHead]));
+    const pk = yr(M.porkSpread), bm = new Map(M.beefSpread.map(x => [x.d, x.spread]));
     mkChart('mp-margin', {type: 'line', data: {labels: pk.map(x => x.d), datasets: [
-      {label: 'Beef $/head (weekly)', data: pk.map(x => bm.get(x.d) ?? null), borderColor: css('--orange'), backgroundColor: css('--orange'), pointRadius: 2, borderWidth: 1.5, spanGaps: true},
-      {label: 'Pork $/head (daily)', data: pk.map(x => x.perHead), borderColor: css('--purple'), pointRadius: 0, borderWidth: 1.5, yAxisID: 'y2'}]},
+      {label: 'Beef $/cwt (weekly)', data: pk.map(x => bm.get(x.d) ?? null), borderColor: css('--orange'), backgroundColor: css('--orange'), pointRadius: 2, borderWidth: 1.5, spanGaps: true},
+      {label: 'Pork $/cwt (daily)', data: pk.map(x => x.spread), borderColor: css('--purple'), pointRadius: 0, borderWidth: 1.5, yAxisID: 'y2'}]},
       options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
-        plugins: {tooltip: {callbacks: {title: it => dLabel(it[0].label, {month: 'short', day: 'numeric', year: 'numeric'}), label: c => ok(c.parsed.y) ? `${c.dataset.label}: ${fmtS(c.parsed.y)}` : null}}},
-        scales: {x: xTicks({month: 'short', year: '2-digit'}), y: {title: {display: true, text: 'beef $/head'}}, y2: {position: 'right', grid: {display: false}, title: {display: true, text: 'pork $/head'}}}}});
+        plugins: {tooltip: {callbacks: {title: it => dLabel(it[0].label, {month: 'short', day: 'numeric', year: 'numeric'}), label: c => ok(c.parsed.y) ? `${c.dataset.label}: ${fmtS(c.parsed.y, 2)}` : null}}},
+        scales: {x: xTicks({month: 'short', year: '2-digit'}), y: {title: {display: true, text: 'beef $/cwt'}}, y2: {position: 'right', grid: {display: false}, title: {display: true, text: 'pork $/cwt'}}}}});
   }
   if (hs) mkChart('mp-hogs', {type: 'bar', data: {labels: hs.days.map(x => x.d), datasets: [{label: 'Hogs scheduled', data: hs.days.map(x => x.head), backgroundColor: css('--purple') + 'aa'}]},
     options: {maintainAspectRatio: false, plugins: {legend: {display: false}, tooltip: {callbacks: {title: it => dLabel(it[0].label, {weekday: 'short', month: 'short', day: 'numeric'}), label: c => `scheduled: ${fmtN(c.parsed.y)} head`}}},
@@ -557,11 +557,11 @@ function renderGlance() {
     const k = lastOK(LV.pork, 'carcass'); if (k) parts.push(`pork cutout $${k.carcass.toFixed(2)}`);
     if (parts.length) out.push(`<b>Cash livestock:</b> ${parts.join(', ')}.`);
     const m = LV.margins, mp = [];
-    if (m) { const b = lastOK(m.beef, 'perHead'), p = lastOK(m.pork, 'perHead');
-      if (b) mp.push(`beef ${fmtS(b.perHead)}/head (wk of ${dLabel(b.d)})`); if (p) mp.push(`pork ${fmtS(p.perHead)}/head`); }
+    if (m) { const p = lastOK(m.porkSpread, 'spread'), b = lastOK(m.beefSpread, 'spread');
+      if (p) mp.push(`pork ${fmtS(p.spread, 2)}/cwt (cutout − cash hogs)`); if (b) mp.push(`beef ${fmtS(b.spread, 2)}/cwt (Choice − dressed steers, wk of ${dLabel(b.d)})`); }
     const hs = LV.hogSched; if (hs?.next7Yr) mp.push(`hogs scheduled next 7 days <span class="${cls(pctCh(hs.next7.head, hs.next7Yr.head))}">${pc(pctCh(hs.next7.head, hs.next7Yr.head))}</span> vs yr ago`);
     const cc = LV.cattleCommit?.at(-1); if (cc && ok(cc.cYr)) mp.push(`cattle committed <span class="${cls(pctCh(cc.c, cc.cYr))}">${pc(pctCh(cc.c, cc.cYr))}</span> vs yr ago`);
-    if (mp.length) out.push(`<b>Packer gross margins &amp; pipeline:</b> ${mp.join(', ')}.`); }
+    if (mp.length) out.push(`<b>Packer margins &amp; pipeline:</b> ${mp.join(', ')}.`); }
   const st = D('basis')?.states || [];
   for (const com of ['Corn', 'Soybeans']) {
     const mv = st.map(s => ({s, x: s.summary[com]})).filter(o => ok(o.x?.wk) && o.s.st.length === 2).sort((a, b) => Math.abs(b.x.wk) - Math.abs(a.x.wk)).slice(0, 3);

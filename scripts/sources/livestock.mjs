@@ -152,7 +152,13 @@ export async function load({keys = {}} = {}) {
       const cwt = cutByDay.get(h.d) + dv.v - h.all;
       return {d: h.d, cutout: cutByDay.get(h.d), drop: dv.v, hog: h.all, wt: h.cw, perCwt: round(cwt, 2), perHead: Math.round(cwt * h.cw / 100)};
     }).filter(Boolean);
-    return {beef: beefM, pork: porkM, steerDrop: sd.at(-1) || null, hogDrop: hd.at(-1) || null};
+    // The quick spreads traders quote ($/cwt carcass): cutout minus the cash (negotiated) price, no by-products.
+    //   pork: pork cutout - national negotiated hog price, same slaughter day (e.g. 72.28 - 62.37)
+    //   beef: Choice cutout (avg of the week the cattle traded) - 5-area dressed steer price
+    const negByDay = new Map((out.hogs || []).filter(h => h.neg).map(h => [h.d, h.neg]));
+    const porkSpread = (out.pork || []).filter(p => negByDay.has(p.d)).map(p => ({d: p.d, cutout: p.carcass, hog: negByDay.get(p.d), spread: round(p.carcass - negByDay.get(p.d), 2)}));
+    const beefSpread = beefM.map(x => ({d: x.d, cutout: x.cutout, cattle: x.cattle, spread: round(x.cutout - x.cattle, 2)}));
+    return {beef: beefM, pork: porkM, porkSpread, beefSpread, steerDrop: sd.at(-1) || null, hogDrop: hd.at(-1) || null};
   });
 
   if (!Object.keys(out).length) throw new Error(errors.join('; '));
