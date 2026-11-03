@@ -1,0 +1,49 @@
+{
+  "date": "2026-11-03",
+  "channel": "Grain Markets and Other Stuff",
+  "title": "Did Trump FIX Soybeans?? Record Demand Projected, China Is Buying",
+  "url": "https://www.youtube.com/watch?v=RIz7yBimvnc",
+  "published": "2026-11-03",
+  "sections": [
+    {"topic": "Open (5:24am CT)", "bullets": [
+      "Dec corn -1 3/4 at 4.47; Jan beans +3 1/4 at 12.20; Dec SRW +1/4 at 6.06 3/4; Dec KC -1 1/4 at 6.44 3/4; Dec spring -1 at 6.24 3/4"
+    ]},
+    {"topic": "Exports / demand", "bullets": [
+      "Inspections wk to Oct 29: beans 90 mbu (-2.3% w/w, YTD +56% y/y); corn 35 mbu (+39% w/w, YTD -13%); wheat 3 mbu, record weekly low, -61% w/w, YTD -36%",
+      "Bean shipments to China 5.98 MMT MYTD (vs 0 last yr, 5.76 two yrs ago); ~8 MMT incl. this week",
+      "Bean export sales +80% y/y, shipments +56% vs USDA +11.8%; USDA likely too low; total bean demand at record even on USDA number",
+      "Flash sales: 68 mbu corn to Mexico (45 old crop / 23 new crop); 5 mbu beans to China",
+      "Corn export sales still -34% y/y; hosts think USDA corn export estimate likely too high"
+    ]},
+    {"topic": "China / trade", "bullets": [
+      "China soyoil stocks record ~1.5 MT (+4.3% y/y) as crush outpaces weak demand; soyoil exports ~3x y/y to ~800k t (9M)",
+      "Chinese trade negotiator met US ag delegation Monday; non-soy US ag purchases tracking 7-yr low (Reuters) vs ~$17B non-soy commitment claimed by White House (not in writing)"
+    ]},
+    {"topic": "Price action / funds", "bullets": [
+      "Mon: Jan beans -~18c to ~12.17, lowest settle since mid-Aug (crude drop, fund liquidation, strong yields); Dec corn +1c ~4.48; wheat slightly higher on Russia-Ukraine strikes",
+      "Funds est. sold ~15k beans net Monday, still ~176k long",
+      "Hosts read bean weakness as market pricing a bigger US crop; possible USDA yield hike next week",
+      "Corn: fresh overnight lows, funds likely still liquidating; farmer selling light and slowing on breaks",
+      "SRW: market ignoring Black Sea; no US demand pickup; ideas of big winter wheat acres (next report Jan 12)"
+    ]},
+    {"topic": "Crop progress", "bullets": [
+      "Corn harvest 74% (prior 60, 5y 77, trade 73); beans 88% (prior 79, 5y 84, in line); winter wheat planted 83% (prior 76, 5y 84, trade 86)",
+      "Corn by state: IA 66 vs 79 avg (too wet); IL 86 vs 83; OH 53 vs 60; MN 82 vs 85; ND 76 ahead; SD 63 vs 75; NE 66 vs 75",
+      "Market focus shifting to Brazil"
+    ]},
+    {"topic": "South America weather", "bullets": [
+      "AgRural: Brazil beans 53% planted (prior 40, LY 47); 1st-crop corn 63% (prior 58, LY 59)",
+      "Last 7d drier than normal across most bean areas, helped wet south dry out; no delays",
+      "Euro 1-7d: Mato Grosso ~61% of normal rain, heavy again in Parana/south; 8-14d wetter north, drier south; no concern, price action confirms"
+    ]},
+    {"topic": "Cattle / outside markets", "bullets": [
+      "Mon: live cattle slightly lower most months; feeders +$0.65 to +$1.43",
+      "S&P -10; Treasuries lower (yields up); Dec WTI recovering after Monday selloff",
+      "Election day; hosts see little direct market impact. No Fed/rates commentary beyond the Treasury move"
+    ]}
+  ],
+  "flags": [
+    "Caption says Dec WTI up $22/bbl at 98.48 - almost certainly a caption error (likely $2.22 or $0.22); price level also unverified",
+    "Place/name captions corrected: Agural = AgRural, Modros = Mato Grosso, Pirania = Parana"
+  ]
+}
