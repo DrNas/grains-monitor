@@ -12,7 +12,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PAGES = (process.env.PAGES_URL ? [process.env.PAGES_URL] : ['https://grains.manasbafna.com/', 'https://drnas.github.io/grains-monitor/']);
 
 const SOURCES = [
-  ['recap', 'Video recap'], ['calendar', 'Report calendar'], ['cot', 'COT positioning'], ['slaughter', 'Livestock slaughter'],
+  ['recap', 'Video recap'], ['calendar', 'Report calendar'], ['cot', 'COT positioning'], ['slaughter', 'Livestock slaughter'], ['livestock', 'Livestock prices'],
   ['basis', 'Cash grain basis'], ['weather', 'Weather'], ['drought', 'Drought Monitor'], ['enso', 'ENSO'],
 ];
 

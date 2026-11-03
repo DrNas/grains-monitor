@@ -29,7 +29,8 @@ button:hover{background:#30363d}
 .seg button:first-child{border-radius:6px 0 0 6px;margin-left:0}
 .seg button:last-child{border-radius:0 6px 6px 0}
 .seg button.on{background:#1f6feb;border-color:#1f6feb;color:#fff}
-nav a{color:var(--muted);text-decoration:none;margin-right:10px;font-size:12px}
+nav{display:flex;flex-wrap:wrap;gap:2px 10px;min-width:0;max-width:100%}
+nav a{color:var(--muted);text-decoration:none;font-size:12px;white-space:nowrap}
 nav a:hover{color:var(--text)}
 main{max-width:1560px;margin:0 auto;padding:12px 16px 60px}
 section{margin-top:26px;scroll-margin-top:60px}
@@ -159,10 +160,9 @@ footer a{color:inherit}
 
   <section id="meat">
     <h2>Livestock</h2>
-    <p class="sub">USDA estimated federally inspected slaughter, the daily read on how fast packers are running. Slaughter running below last year means tighter supply.</p>
-    <div class="grid g2" id="meat-cards"></div>
-    <div class="card wait" style="margin-top:10px"><div class="ct">Coming next: cash cattle, boxed beef, pork cutout, hog prices</div>
-      <div class="cs">5-area fed steer, Choice/Select cutout, pork cutout and primals, national negotiated hogs, all from USDA Livestock Mandatory Reporting. Waiting on network access to USDA's report server.</div></div>
+    <p class="sub">Cash cattle, boxed beef, hogs and pork from USDA Livestock Mandatory Reporting, plus estimated federally inspected slaughter. Cutout over cash = packers have margin to buy; slaughter below last year = tighter supply. Prices in $/cwt.</p>
+    <div class="grid g2" id="price-cards"></div>
+    <div class="grid g2" id="meat-cards" style="margin-top:10px"></div>
   </section>
 
   <section id="basis">
@@ -304,6 +304,59 @@ function renderCOT() {
         y: {ticks: {callback: v => fmtK(v)}}, oi: {position: 'right', grid: {display: false}, ticks: {callback: v => fmtK(v)}, title: {display: true, text: 'open interest'}}}}});
 }
 
+
+/* ---------- livestock prices ---------- */
+// value on or just before a date n days back (series sorted by d)
+const back = (ser, days, f) => { if (!ser?.length) return null; const t = new Date(ser.at(-1).d + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() - days);
+  const cut = t.toISOString().slice(0, 10); for (let i = ser.length - 1; i >= 0; i--) if (ser[i].d <= cut && ok(ser[i][f])) return ser[i][f]; return null; };
+const lastOK = (ser, f) => { for (let i = (ser?.length || 0) - 1; i >= 0; i--) if (ok(ser[i][f])) return ser[i]; return null; };
+function priceRow(lbl, ser, f, {d = 2, note = '', days = [1, 7, 364]} = {}) {
+  const L = lastOK(ser, f); if (!L) return `<tr><td>${lbl}</td><td class="n" colspan="4">—</td><td></td></tr>`;
+  const upto = ser.slice(0, ser.indexOf(L) + 1), v = L[f];
+  const prev = days[0] === 1 ? (upto.slice(0, -1).reverse().find(x => ok(x[f]))?.[f] ?? null) : back(upto, days[0], f);
+  const ch = [prev, back(upto, days[1], f)].map(o => ok(o) ? v - o : null), yr = back(upto, days[2], f);
+  return `<tr><td>${lbl}</td><td class="n"><b>${fmtN(v, d)}</b></td><td class="n ${cls(ch[0])}">${fmtS(ch[0], d)}</td><td class="n ${cls(ch[1])}">${fmtS(ch[1], d)}</td><td class="n ${cls(pctCh(v, yr))}" title="a year ago: ${fmtN(yr, d)}">${pc(pctCh(v, yr))}</td><td class="muted">${note || dLabel(L.d)}</td></tr>`;
+}
+const priceHead = (a = 'vs prev', b = 'vs 1 wk') => `<thead><tr><th></th><th class="n">$/cwt</th><th class="n">${a}</th><th class="n">${b}</th><th class="n">vs yr ago</th><th></th></tr></thead>`;
+function renderLivestockPrices() {
+  const L = D('livestock'); if (!L) return noData($('#price-cards'), 'livestock');
+  const cw = L.cattleWeekly || [], cd = L.cattleDaily || [], beef = L.beef || [], pork = L.pork || [], hogs = L.hogs || [];
+  const today = [...cd].reverse().find(x => ok(x.live)), wl = lastOK(cw, 'live'), wd = lastOK(cw, 'dressed'), ng = lastOK(hogs, 'neg'), pc0 = lastOK(pork, 'carcass');
+  $('#price-cards').innerHTML = `
+    <div class="card"><div class="ct">Cattle and beef</div><div class="tw"><table>${priceHead('vs 1 wk', 'vs 4 wk')}<tbody>
+      ${priceRow('5-area steers, live (week)', cw, 'live', {days: [7, 28, 364], note: wl ? `wk of ${dLabel(wl.d)} · ${fmtN(wl.liveHead)} hd` : ''})}
+      ${priceRow('5-area steers, dressed (week)', cw, 'dressed', {days: [7, 28, 364], note: wd ? fmtN(wd.dressedHead) + ' hd' : ''})}
+      </tbody></table><table style="margin-top:6px">${priceHead()}<tbody>
+      ${today ? `<tr><td>5-area live, latest day</td><td class="n"><b>${fmtN(today.live, 2)}</b></td><td class="n muted" colspan="3">range ${fmtN(today.lo, 0)}–${fmtN(today.hi, 0)} · ${fmtN(today.liveHead)} hd</td><td class="muted">${dLabel(today.d)}</td></tr>` : ''}
+      ${priceRow('Choice cutout', beef, 'choice')}${priceRow('Select cutout', beef, 'select')}${priceRow('Choice − Select', beef, 'spread')}
+      </tbody></table></div><div class="cs" style="margin-top:2px">Negotiated cash trade, steers. The daily 5-area is thin early in the week; the weekly is the cleaner read.</div>
+      <div class="cb"><canvas id="lv-cattle"></canvas></div></div>
+    <div class="card"><div class="ct">Hogs and pork</div><div class="tw"><table>${priceHead()}<tbody>
+      ${priceRow('Lean Hog Index (calculated)', hogs, 'lhi', {note: 'CME method, see note'})}
+      ${priceRow('National negotiated hogs', hogs, 'neg', {note: ng ? fmtN(ng.negHead) + ' hd · ' + dLabel(ng.d) : ''})}
+      ${priceRow('Pork cutout', pork, 'carcass', {note: pc0 ? fmtN(pc0.loads, 0) + ' loads · ' + dLabel(pc0.d) : ''})}
+      ${['belly', 'ham', 'loin', 'butt', 'rib', 'picnic'].map(k => priceRow('&nbsp;&nbsp;' + k[0].toUpperCase() + k.slice(1), pork, k)).join('')}
+      </tbody></table></div>
+      <div class="cs" style="margin-top:2px">Lean Hog Index calculated here the way CME does (2-day head-weighted average of producer-sold negotiated, negotiated formula and swine/pork market formula carcass prices). When USDA withholds the negotiated-formula price it is weighted over the other two, so it can differ slightly from CME's published index.</div>
+      <div class="cb"><canvas id="lv-hogs"></canvas></div></div>`;
+  const yr = s => { const c = new Date(); c.setFullYear(c.getFullYear() - 1); const cs = c.toISOString().slice(0, 10); return s.filter(x => x.d >= cs); };
+  const lineOpts = (yl, yr2) => ({maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, spanGaps: true,
+    plugins: {tooltip: {callbacks: {title: it => dLabel(it[0].label, {month: 'short', day: 'numeric', year: 'numeric'}), label: c => ok(c.parsed.y) ? `${c.dataset.label}: $${c.parsed.y.toFixed(2)}` : null}}},
+    scales: {x: {ticks: {maxTicksLimit: 7, callback(v) { return dLabel(this.getLabelForValue(v), {month: 'short', year: '2-digit'}); }}, grid: {display: false}},
+      y: {title: {display: true, text: yl}}, ...(yr2 ? {y2: {position: 'right', grid: {display: false}, title: {display: true, text: yr2}}} : {})}});
+  // cattle: daily Choice cutout, with each weekly 5-area live price placed on its report date
+  const b1 = yr(beef), wmap = new Map(cw.map(x => [x.d, x.live]));
+  mkChart('lv-cattle', {type: 'line', data: {labels: b1.map(x => x.d), datasets: [
+    {label: 'Choice cutout', data: b1.map(x => x.choice), borderColor: css('--orange'), pointRadius: 0, borderWidth: 2},
+    {label: '5-area live steer (weekly)', data: b1.map(x => wmap.get(x.d) ?? null), borderColor: css('--cyan'), backgroundColor: css('--cyan'), pointRadius: 2, borderWidth: 1.5, yAxisID: 'y2'}]},
+    options: lineOpts('cutout $/cwt', 'live $/cwt')});
+  const p1 = yr(pork), hmap = new Map(hogs.map(x => [x.d, x.lhi]));
+  mkChart('lv-hogs', {type: 'line', data: {labels: p1.map(x => x.d), datasets: [
+    {label: 'Pork cutout', data: p1.map(x => x.carcass), borderColor: css('--purple'), pointRadius: 0, borderWidth: 2},
+    {label: 'Lean Hog Index (calc.)', data: p1.map(x => hmap.get(x.d) ?? null), borderColor: css('--cyan'), pointRadius: 0, borderWidth: 1.5}]},
+    options: lineOpts('$/cwt')});
+}
+
 /* ---------- livestock ---------- */
 function renderMeat() {
   const sl = D('slaughter'); if (!sl) return noData($('#meat-cards'), 'slaughter');
@@ -440,6 +493,13 @@ function renderGlance() {
   const sl = D('slaughter');
   if (sl) out.push('<b>Slaughter, last full week vs a year ago:</b> ' + ['cattle', 'hogs'].map(sp => { const w = (sl[sp]?.weekly || []).filter(x => x.days >= 5).at(-1);
     return w ? `${sp} ${fmtN(w.head)} (<span class="${cls(pctCh(w.head, w.yr))}">${pc(pctCh(w.head, w.yr))}</span>)` : null; }).filter(Boolean).join(', ') + '.');
+  const LV = D('livestock');
+  if (LV) { const parts = [];
+    const cw = lastOK(LV.cattleWeekly, 'live'); if (cw) { const p = back(LV.cattleWeekly.slice(0, LV.cattleWeekly.indexOf(cw) + 1), 7, 'live'); parts.push(`5-area steers $${cw.live.toFixed(2)}${ok(p) ? ` (<span class="${cls(cw.live - p)}">${fmtS(cw.live - p, 2)}</span> wk)` : ''}`); }
+    const b = lastOK(LV.beef, 'choice'); if (b) parts.push(`Choice cutout $${b.choice.toFixed(2)}`);
+    const h = lastOK(LV.hogs, 'lhi'); if (h) { const p = back(LV.hogs.slice(0, LV.hogs.indexOf(h) + 1), 7, 'lhi'); parts.push(`Lean Hog Index (calc.) $${h.lhi.toFixed(2)}${ok(p) ? ` (<span class="${cls(h.lhi - p)}">${fmtS(h.lhi - p, 2)}</span> wk)` : ''}`); }
+    const k = lastOK(LV.pork, 'carcass'); if (k) parts.push(`pork cutout $${k.carcass.toFixed(2)}`);
+    if (parts.length) out.push(`<b>Cash livestock:</b> ${parts.join(', ')}.`); }
   const st = D('basis')?.states || [];
   for (const com of ['Corn', 'Soybeans']) {
     const mv = st.map(s => ({s, x: s.summary[com]})).filter(o => ok(o.x?.wk) && o.s.st.length === 2).sort((a, b) => Math.abs(b.x.wk) - Math.abs(a.x.wk)).slice(0, 3);
@@ -486,7 +546,7 @@ async function boot() {
   for (const u of urls) { try { const r = await fetch(u + '?t=' + Math.floor(Date.now() / 3e5)); if (r.ok) { SNAP = await r.json(); break; } } catch (e) {} }
   if (!SNAP) { $('#stamp').textContent = 'could not load data/latest.json'; return; }
   renderStatus();
-  for (const f of [renderGlance, renderVideo, renderCalendar, renderCOT, renderMeat, renderBasis, renderWeather, renderDrought]) {
+  for (const f of [renderGlance, renderVideo, renderCalendar, renderCOT, renderLivestockPrices, renderMeat, renderBasis, renderWeather, renderDrought]) {
     try { f(); } catch (e) { console.error(f.name, e); }
   }
 }

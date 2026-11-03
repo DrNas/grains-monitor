@@ -17,6 +17,8 @@
 | cot | managed money, commercial, swap, OI; 1/4-week changes, 3y/5y percentiles, run length, 6 years of weekly history | CFTC Socrata `72hh-3qpy` (disaggregated, futures only) | none |
 | slaughter | daily estimated FI cattle and hog slaughter; Sun–Sat weekly totals vs year ago | MyMarketNews report 3208, section "Report Livestock Commodity" | MMN |
 | basis | 17 state/port grain bid reports: rows by region and delivery point, state summaries (country elevators) | MyMarketNews "Report Detail" sections; ids in `basis.mjs` | MMN |
+| livestock | 5-area weekly and daily negotiated steers (live FOB, dressed delivered), Choice/Select cutout, pork cutout and primals, national negotiated hogs, calculated Lean Hog Index; ~14 months daily history | USDA LMR datamart `mpr.datamart.ams.usda.gov/services/v1.1/reports/<id>/<section>` (2477, 2466, 2453, 2498, 2511); `q=field=value;...` filters rows | none |
+| recap | video summaries from `data/recaps/*.json` (newest 10) | written by the scheduled summary task; prompt in `docs/video-summary-task.md` | none |
 | weather | 9 regions (`scripts/regions.mjs`), last 30 + next 16 days, vs normals | Open-Meteo forecast API, one multi-location request | none |
 | drought | U.S. and 14 states, D0–D4 cumulative %, 1/4/52-week changes | usdmdataservices.unl.edu (state `aoi` = 2-digit FIPS) | none |
 | enso | ONI history, alert status and synopsis | CPC `oni.ascii.txt` and `ensodisc.shtml` | none |
@@ -32,7 +34,10 @@ The NOAA outlook maps and the Drought Monitor map are hot-linked images (always 
 - **Weather normals** (`data/weather-normals.json`) are day-of-year averages of 2010–2024 Open-Meteo ERA5 data, ±15-day smoothed, per region (mean of its points). They are built once by `node scripts/build-normals.mjs` (resumable: Open-Meteo's free tier counts a long-history request as hundreds of calls; downloads are cached in `.normals-cache/`, which is git-ignored). Rebuild if you add or move a point in `regions.mjs`.
 - The forecast is Open-Meteo's best-match blend; days 8–16 are low-skill and labelled as such.
 
+- **Lean Hog Index** is calculated, not CME's file: 2-day head-weighted average of LM_HG201 producer-sold negotiated, negotiated formula and swine/pork market formula net prices (keyed by slaughter date). USDA often withholds the negotiated-formula price (confidentiality); the index then uses the other two, so it can differ slightly from CME's.
+- **Daily recap** "At a glance" is computed in the browser from the snapshot (no AI). The video recap comes from the scheduled task "Grain Markets daily video summary", which runs on the owner's computer (MON-5V4PG04) and pushes `data/recaps/<date>.json`; changing its prompt needs the owner's approval on that computer.
+
 ## Next (agreed scope not built yet)
-1. **Livestock cash** from USDA Livestock Mandatory Reporting (`mpr.datamart.ams.usda.gov`, no key): 5-area fed steer (LM_CT100/150), boxed beef cutout (LM_XB403), pork cutout (LM_PK602), national hogs (LM_HG201), and the CME Lean Hog Index computed from them. Needs that host reachable from wherever this is developed (GitHub's runners can reach it).
+1. **Feeder cattle index** (CME's index is built from AMS auction, direct and video reports in 12 states; not done).
 2. **Grain fundamentals**: FAS export sales vs USDA's needed pace (`DATAGOV_API_KEY`), NASS crop progress/conditions vs 5-year average (`NASS_API_KEY`), EIA weekly ethanol (`EIA_API_KEY`), AgTransport barge rates.
 3. **Report-day reactions**: how much each market typically moved on past report days (needs a daily futures settlement history).
