@@ -1,0 +1,56 @@
+name: Build and publish
+
+on:
+  # GitHub's scheduled runs are best effort (sometimes late or skipped), so several runs overlap: each rebuilds
+  # everything, whichever runs last wins. Times are UTC; New York is UTC-5 in winter, UTC-4 in summer.
+  schedule:
+    - cron: '17 12 * * *'      # ~7:17am ET: overnight weather run, prior-day basis and slaughter
+    - cron: '23 17 * * 1-5'    # ~12:23pm ET: WASDE / Crop Production (noon), morning slaughter estimate
+    - cron: '52 20 * * 1-5'    # ~3:52pm ET: NASS 3pm reports, COT (Fri 3:30pm)
+    - cron: '37 22 * * 1-5'    # ~5:37pm ET: state grain bids (mid-afternoon), Crop Progress (Mon 4pm)
+    - cron: '13 2 * * 2-6'     # ~9:13pm ET: evening backup
+    - cron: '41 18 * * 0,6'    # weekends: weather
+  workflow_dispatch:           # "Run workflow" button on the Actions tab
+  push:
+    branches: [main]
+    paths: ['index.html', 'scripts/**', 'data/**', '.github/workflows/build.yml']
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fetch every source and build the snapshot
+        id: build
+        env:
+          MMN_API_KEY: ${{ secrets.MMN_API_KEY }}
+          NASS_API_KEY: ${{ secrets.NASS_API_KEY }}
+          DATAGOV_API_KEY: ${{ secrets.DATAGOV_API_KEY }}
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+        run: node scripts/build-data.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4
+      - name: Flag sources that failed today
+        if: steps.build.outputs.failed != ''
+        run: |
+          echo "::error::Failed today (the previous copy was kept if there was one): ${{ steps.build.outputs.failed }}"
+          exit 1

@@ -1,0 +1,6 @@
+{
+  "_note": "Report dates no feed provides. WASDE (USDA WAOB) is released at 12:00 pm ET. Add each new year's dates when USDA posts them at https://www.usda.gov/oce/commodity/wasde (2027 dates were not out yet on 2026-11-03).",
+  "events": [
+    {"name": "WASDE", "time": "12:00", "dates": ["2026-01-12", "2026-02-10", "2026-03-10", "2026-04-09", "2026-05-12", "2026-06-11", "2026-07-10", "2026-08-12", "2026-09-11", "2026-10-09", "2026-11-10", "2026-12-10"]}
+  ]
+}

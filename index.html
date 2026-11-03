@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grains & Livestock Monitor</title>
+<meta name="description" content="Fund positioning, report calendar, livestock slaughter, cash grain basis and crop weather for grain and livestock futures traders. Built daily from USDA, CFTC and NOAA data.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0d1117; --card:#161b22; --border:#30363d; --grid:#21262d; --text:#e6edf3; --muted:#8b949e;
+  --blue:#58a6ff; --orange:#f0883e; --green:#3fb950; --purple:#bc8cff; --red:#f85149; --yellow:#d29922; --cyan:#39c5cf; --grey:#6e7681;
+  --ok:#3fb950; --warn:#d29922; --bad:#f85149;
+  --long:#f0883e; --short:#58a6ff;           /* crowded long / crowded short */
+  --wet:#3fb950; --dry:#d29922; --vdry:#f85149;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+header{position:sticky;top:0;z-index:20;background:rgba(13,17,23,.96);border-bottom:1px solid var(--border);backdrop-filter:blur(6px)}
+.hrow{max-width:1560px;margin:0 auto;padding:8px 16px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+h1{font-size:16px;margin:0;letter-spacing:.2px}
+.muted{color:var(--muted)}
+.sp{flex:1}
+button,select{font:inherit;color:var(--text);background:#21262d;border:1px solid var(--border);border-radius:6px;padding:3px 10px;cursor:pointer}
+button:hover{background:#30363d}
+.seg{display:inline-flex}
+.seg button{border-radius:0;margin-left:-1px;padding:1px 9px}
+.seg button:first-child{border-radius:6px 0 0 6px;margin-left:0}
+.seg button:last-child{border-radius:0 6px 6px 0}
+.seg button.on{background:#1f6feb;border-color:#1f6feb;color:#fff}
+nav a{color:var(--muted);text-decoration:none;margin-right:10px;font-size:12px}
+nav a:hover{color:var(--text)}
+main{max-width:1560px;margin:0 auto;padding:12px 16px 60px}
+section{margin-top:26px;scroll-margin-top:60px}
+section>h2{font-size:17px;margin:0 0 2px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline}
+section>h2 .ctl{font-size:12px;font-weight:400}
+p.sub{margin:0 0 10px;color:var(--muted);max-width:1100px}
+.grid{display:grid;gap:10px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))} .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.gauto{grid-template-columns:repeat(auto-fill,minmax(400px,1fr))}
+@media(max-width:1100px){.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.g2,.g3{grid-template-columns:1fr} .gauto{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;min-width:0}
+.ct{font-weight:600;font-size:13px}
+.cs{color:var(--muted);font-size:11px}
+.cf{font-size:10.5px;color:var(--muted);margin-top:4px}
+.cb{position:relative;height:250px;margin-top:6px}
+.cb.sm{height:150px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:3px 7px;border-bottom:1px solid var(--grid);text-align:left;white-space:nowrap}
+th{color:var(--muted);font-weight:600;background:var(--card);position:sticky;top:0;z-index:1}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.tw{overflow:auto}
+tr.click{cursor:pointer} tr.click:hover td{background:#1c2330}
+tr.sel td{background:#1f2a3a}
+tr.grp td{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding-top:8px;border-bottom:1px solid var(--border)}
+tr.detail td{color:var(--muted);font-size:11.5px;background:#11161d}
+.up{color:var(--green)} .dn{color:var(--red)}
+.pill{display:inline-block;border-radius:10px;padding:0 7px;font-size:11px;border:1px solid var(--border);color:var(--muted)}
+.pill.on{color:#fff;background:#1f6feb;border-color:#1f6feb}
+.pill.t1{color:#111;background:var(--yellow);border-color:var(--yellow);font-weight:600}
+.bar{position:relative;display:inline-block;width:84px;height:10px;background:#21262d;border-radius:3px;vertical-align:middle;margin-left:6px}
+.bar i{position:absolute;top:0;width:3px;height:10px;border-radius:1px;background:var(--text)}
+.bar b{position:absolute;top:0;bottom:0;border-radius:3px}
+.hot{color:var(--long)} .cold{color:var(--short)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}
+.chip{border:1px solid var(--border);background:var(--card);border-radius:12px;padding:1px 9px;font-size:11.5px;white-space:nowrap}
+.chip b{font-weight:600}
+.s-OK b{color:var(--ok)} .s-PARTIAL b,.s-CACHED b{color:var(--warn)} .s-FAILED b{color:var(--bad)}
+#status summary{cursor:pointer;width:max-content;max-width:100%}
+#notes{font-size:12px;color:var(--muted);margin:4px 0}
+#notes div{margin:2px 0}
+/* calendar */
+.next{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px}
+.nbox{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 12px;min-width:240px;flex:1}
+.nbox .big{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.nbox.major{border-color:var(--yellow)}
+.day{display:grid;grid-template-columns:120px 1fr;gap:0 10px;padding:5px 0;border-bottom:1px solid var(--grid)}
+.day.today{background:#11161d}
+.day .dl{color:var(--muted);font-size:12px;padding-left:6px}
+.day.today .dl{color:var(--text);font-weight:600}
+.ev{display:flex;gap:8px;align-items:baseline;padding:1px 0}
+.ev .tm{color:var(--muted);font-variant-numeric:tabular-nums;width:62px;flex:none}
+.ev .mk{color:var(--muted);font-size:11px}
+.ev.past{opacity:.45}
+.ev.t1 .nm{font-weight:600;color:var(--yellow)}
+@media(max-width:760px){
+  .day{grid-template-columns:1fr;padding:6px 0}
+  .day .dl{padding:0 0 2px 0}
+  .ev{flex-wrap:wrap;gap:0 8px}
+  .ev .mk{flex-basis:100%;padding-left:70px}
+  .nbox{min-width:calc(50% - 5px);padding:6px 8px}
+  .nbox .big{font-size:16px}
+}
+/* weather */
+.wxc.off{opacity:.62}
+.wxc table td{padding:2px 5px}
+.wxc .hd{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.imgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.imgs figure{margin:0;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px}
+.imgs img{width:100%;height:auto;display:block;border-radius:4px;background:#fff}
+.imgs figcaption{font-size:11.5px;color:var(--muted);margin-top:4px}
+.empty{color:var(--muted);font-style:italic;padding:10px}
+.wait{border-style:dashed}
+footer{margin-top:34px;color:var(--muted);font-size:11.5px;line-height:1.6}
+footer a{color:inherit}
+</style>
+</head>
+<body>
+<header>
+  <div class="hrow">
+    <h1>Grains &amp; Livestock Monitor</h1>
+    <nav><a href="#cal">Calendar</a><a href="#cot">Positioning</a><a href="#meat">Livestock</a><a href="#basis">Basis</a><a href="#wx">Weather</a><a href="#drought">Drought &amp; ENSO</a></nav>
+    <span class="sp"></span>
+    <span class="muted" id="stamp">loading…</span>
+  </div>
+</header>
+<main>
+  <details id="status"><summary><b>Data status</b> <span id="stsum" class="muted"></span></summary>
+    <div class="chips" id="strip"></div><div id="notes"></div>
+  </details>
+
+  <section id="cal">
+    <h2>Report calendar <span class="ctl seg" id="cal-tier"><button data-t="1">Major</button><button data-t="2" class="on">Major + weekly</button><button data-t="3">All</button></span></h2>
+    <p class="sub">USDA, CFTC and EIA releases for the next few weeks, in US Eastern time. Countdowns are live. Yellow = reports that regularly move prices.</p>
+    <div class="next" id="cal-next"></div>
+    <div class="card" id="cal-list"></div>
+    <div style="margin-top:6px"><button id="cal-more">Show the next 3 months</button></div>
+  </section>
+
+  <section id="cot">
+    <h2>Fund positioning <span class="ctl muted" id="cot-asof"></span></h2>
+    <p class="sub">Managed money (CFTC disaggregated report, futures only). <b>5Y %ile</b> places this week's net position in its own last five years: high = funds unusually long, low = unusually short. Extremes flag crowded trades, not timing: a crowded side can stay crowded. Click a row to chart it.</p>
+    <div class="chips" id="cot-crowd"></div>
+    <div class="grid">
+      <div class="card tw" id="cot-table"></div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><div><div class="ct" id="cot-ct"></div><div class="cs">contracts, net long (+) / short (−)</div></div>
+          <span class="seg" id="cot-range"><button data-y="1">1Y</button><button data-y="3" class="on">3Y</button><button data-y="6">All</button></span></div>
+        <div class="cb" style="height:320px"><canvas id="cot-chart"></canvas></div>
+        <div class="cf" id="cot-cf"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="meat">
+    <h2>Livestock</h2>
+    <p class="sub">USDA estimated federally inspected slaughter, the daily read on how fast packers are running. Slaughter running below last year means tighter supply.</p>
+    <div class="grid g2" id="meat-cards"></div>
+    <div class="card wait" style="margin-top:10px"><div class="ct">Coming next: cash cattle, boxed beef, pork cutout, hog prices</div>
+      <div class="cs">5-area fed steer, Choice/Select cutout, pork cutout and primals, national negotiated hogs, all from USDA Livestock Mandatory Reporting. Waiting on network access to USDA's report server.</div></div>
+  </section>
+
+  <section id="basis">
+    <h2>Cash grain basis <span class="ctl seg" id="basis-com"><button data-c="Corn" class="on">Corn</button><button data-c="Soybeans">Soybeans</button><button data-c="wheat">Wheat</button><button data-c="Sorghum">Sorghum</button></span></h2>
+    <p class="sub">USDA's daily state grain bid reports, averaged over each state's country-elevator regions (the export report for the PNW, the barge report for river terminals). Basis is cents over or under the futures month shown. Firming basis while futures are flat = end users bidding for grain. Click a state for its regions and delivery points.</p>
+    <div class="card tw" id="basis-table"></div>
+  </section>
+
+  <section id="wx">
+    <h2>Crop and feedlot weather</h2>
+    <p class="sub">Each region is the average of a few representative points (hover a card title for them). Rain as % of the 2010–2024 normal, temperature as °F above or below normal. "Next 7 / 8–16 days" is the Open-Meteo model blend; skill drops sharply after day 7. Regions in their price-sensitive season come first.</p>
+    <div class="grid gauto" id="wx-cards"></div>
+    <h3 style="font-size:14px;margin:18px 0 6px">NOAA outlooks (U.S.)</h3>
+    <div class="imgs" id="cpc"></div>
+  </section>
+
+  <section id="drought">
+    <h2>Drought &amp; ENSO <span class="ctl muted" id="dr-asof"></span></h2>
+    <p class="sub">U.S. Drought Monitor (weekly, valid Tuesday, out Thursday): share of area in moderate drought or worse (D1+), with changes. ENSO from NOAA's Climate Prediction Center. El Niño tends to favor southern Brazil and Argentina and stress northern Brazil; La Niña the reverse.</p>
+    <div class="grid g3">
+      <div class="card tw" id="dr-table"></div>
+      <figure class="card" style="margin:0"><div class="ct">Current U.S. Drought Monitor map</div><img src="https://droughtmonitor.unl.edu/data/png/current/current_usdm.png" alt="U.S. Drought Monitor map" style="width:100%;margin-top:6px;border-radius:4px;background:#fff" loading="lazy"><div class="cf">droughtmonitor.unl.edu</div></figure>
+      <div class="card" id="enso"></div>
+    </div>
+  </section>
+
+  <footer>
+    Data: CFTC Commitments of Traders · USDA AMS MyMarketNews (state grain bids, FI slaughter) · USDA NASS release calendar · USDA WASDE schedule · Open-Meteo (forecasts, ERA5 normals) · NOAA Climate Prediction Center · U.S. Drought Monitor (NDMC, USDA, NOAA). Rebuilt several times a day by a scheduled job; nothing is estimated or filled in, a missing number shows as —.<br>
+    For information only, not investment advice. · <a href="https://manasbafna.com/">manasbafna.com</a>
+  </footer>
+</main>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c]);
+const ok = v => typeof v === 'number' && Number.isFinite(v);
+const fmtN = (v, d = 0) => ok(v) ? v.toLocaleString('en-US', {minimumFractionDigits: d, maximumFractionDigits: d}) : '—';
+const fmtS = (v, d = 0) => { if (!ok(v)) return '—'; const r = +v.toFixed(d); return (r > 0 ? '+' : r < 0 ? '−' : '') + fmtN(Math.abs(r), d); };
+const fmtK = v => ok(v) ? (Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : Math.abs(v) >= 1e4 ? Math.round(v / 1e3) + 'k' : fmtN(v)) : '—';
+const cls = v => ok(v) && v > 0 ? 'up' : ok(v) && v < 0 ? 'dn' : '';
+const pc = v => ok(v) ? fmtS(v, 1) + '%' : '—';
+const pctCh = (a, b) => ok(a) && ok(b) && b ? (a / b - 1) * 100 : null;
+const ord = n => n + (['th', 'st', 'nd', 'rd'][(n % 100 - 20) % 10] || ['th', 'st', 'nd', 'rd'][n % 100] || 'th');
+const dLabel = (s, o = {month: 'short', day: 'numeric'}) => new Date(s + 'T12:00:00Z').toLocaleDateString('en-US', {timeZone: 'UTC', ...o});
+const charts = {};
+const mkChart = (id, cfg) => { charts[id]?.destroy(); charts[id] = new Chart(document.getElementById(id), cfg); return charts[id]; };
+Chart.defaults.color = css('--muted'); Chart.defaults.borderColor = css('--grid'); Chart.defaults.font.size = 11;
+Chart.defaults.plugins.legend.labels.boxWidth = 12; Chart.defaults.animation = false;
+const seg = (el, cb) => el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); cb(b.dataset); });
+const save = (k, v) => { try { localStorage.setItem('glm_' + k, JSON.stringify(v)); } catch (e) {} };
+const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem('glm_' + k)); return v ?? d; } catch (e) { return d; } };
+
+let SNAP = null;
+const S = id => SNAP?.series?.[id];
+const D = id => S(id)?.data;
+const noData = (el, id) => { el.innerHTML = `<div class="empty">No data for this section yet${S(id)?.note ? ': ' + esc(S(id).note) : ''}.</div>`; };
+
+/* ---------- status ---------- */
+function renderStatus() {
+  const age = (Date.now() - new Date(SNAP.generated)) / 36e5;
+  $('#stamp').textContent = `data built ${new Date(SNAP.generated).toLocaleString([], {weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'})}` + (age > 30 ? ` (${Math.round(age)}h ago)` : '');
+  const ser = Object.entries(SNAP.series);
+  $('#strip').innerHTML = ser.map(([id, s]) => `<span class="chip s-${s.state}" title="${esc(s.src)}${s.note ? '\n' + esc(s.note) : ''}">${esc(s.label)} <b>${s.state}</b>${s.latest ? ' · ' + esc(s.latest) : ''}</span>`).join('');
+  $('#notes').innerHTML = ser.filter(([, s]) => s.note).map(([, s]) => `<div><b>${esc(s.label)}:</b> ${esc(s.note)}</div>`).join('');
+  const bad = ser.filter(([, s]) => s.state !== 'OK').length;
+  $('#stsum').textContent = bad ? `${ser.length - bad} of ${ser.length} sources fresh` : `all ${ser.length} sources fresh`;
+}
+
+/* ---------- calendar ---------- */
+let calTier = load('calTier', 2), calMore = false;
+function renderCalendar() {
+  const ev = D('calendar')?.events; if (!ev) return noData($('#cal-list'), 'calendar');
+  const now = Date.now(), todayET = new Date().toLocaleDateString('en-CA', {timeZone: 'America/New_York'});
+  // the next market-moving report(s) and the next weekly ones
+  const up = ev.filter(e => new Date(e.at) > now);
+  const nextOf = f => { const e = up.find(f); return e ? up.filter(x => x.at === e.at && f(x)) : []; };
+  const box = (title, list, major) => {
+    if (!list.length) return '';
+    const t = new Date(list[0].at), ms = t - now, d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4);
+    return `<div class="nbox${major ? ' major' : ''}"><div class="cs">${title}</div><div class="ct">${list.map(e => esc(e.name)).join(' + ')}</div>
+      <div class="big" data-at="${list[0].at}">${d ? d + 'd ' : ''}${h}h ${String(m).padStart(2, '0')}m</div>
+      <div class="cs">${dLabel(list[0].date, {weekday: 'short', month: 'short', day: 'numeric'})} · ${list[0].time} ET · ${esc(list[0].markets)}</div></div>`;
+  };
+  $('#cal-next').innerHTML = box('Next major report', nextOf(e => e.tier === 1), true) + box('Next Commitments of Traders', nextOf(e => /Commitments/.test(e.name)))
+    + box('Next export sales', nextOf(e => /Export Sales/.test(e.name))) + box('Next Crop Progress', nextOf(e => /Crop Progress/.test(e.name)));
+  const horizon = new Date(Date.now() + (calMore ? 95 : 21) * 864e5).toLocaleDateString('en-CA', {timeZone: 'America/New_York'});
+  const show = ev.filter(e => e.tier <= calTier && e.date >= todayET && e.date <= horizon);
+  const days = [...new Set(show.map(e => e.date))];
+  $('#cal-more').textContent = calMore ? 'Show the next 3 weeks only' : 'Show the next 3 months';
+  $('#cal-list').innerHTML = days.length ? days.map(d => `<div class="day${d === todayET ? ' today' : ''}"><div class="dl">${d === todayET ? 'Today' : dLabel(d, {weekday: 'short', month: 'short', day: 'numeric'})}</div><div>`
+    + show.filter(e => e.date === d).map(e => `<div class="ev t${e.tier}${new Date(e.at) < now ? ' past' : ''}"><span class="tm">${e.time} ET</span><span class="nm">${esc(e.name)}${e.approx ? ' <span class="mk">(date estimated)</span>' : ''}</span><span class="mk">${esc(e.markets)} · ${esc(e.src)}</span></div>`).join('')
+    + '</div></div>').join('') : '<div class="empty">No releases listed.</div>';
+}
+setInterval(() => document.querySelectorAll('.nbox .big[data-at]').forEach(el => {
+  const ms = new Date(el.dataset.at) - Date.now(); if (ms < 0) { el.textContent = 'out now'; return; }
+  const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4);
+  el.textContent = `${d ? d + 'd ' : ''}${h}h ${String(m).padStart(2, '0')}m`;
+}), 20000);
+
+/* ---------- COT ---------- */
+let cotSel = load('cotSel', 'corn'), cotYears = load('cotYears', 3);
+function pctBar(p) {
+  if (!ok(p)) return '—';
+  const col = p >= 90 ? css('--long') : p <= 10 ? css('--short') : css('--grey');
+  return `<span class="n">${p}</span><span class="bar" title="${ord(p)} percentile of the last 5 years"><b style="left:0;width:${p}%;background:${col};opacity:.55"></b><i style="left:calc(${p}% - 1px)"></i></span>`;
+}
+function renderCOT() {
+  const ms = D('cot')?.markets; if (!ms) return noData($('#cot-table'), 'cot');
+  const asof = S('cot').latest;
+  $('#cot-asof').textContent = asof ? `positions as of Tue ${dLabel(asof)}, released the following Friday` : '';
+  const longs = ms.filter(m => m.pct5 >= 90).sort((a, b) => b.pct5 - a.pct5), shorts = ms.filter(m => m.pct5 <= 10).sort((a, b) => a.pct5 - b.pct5);
+  $('#cot-crowd').innerHTML = (longs.length ? `<span class="chip">Crowded long: <b class="hot">${longs.map(m => `${esc(m.name)} (${ord(m.pct5)})`).join(', ')}</b></span>` : '')
+    + (shorts.length ? `<span class="chip">Crowded short: <b class="cold">${shorts.map(m => `${esc(m.name)} (${ord(m.pct5)})`).join(', ')}</b></span>` : '')
+    + (!longs.length && !shorts.length ? '<span class="chip">No market is at a 5-year extreme (above the 90th or below the 10th percentile).</span>' : '');
+  let grp = '';
+  const rows = ms.map(m => {
+    const g = m.grp !== grp ? `<tr class="grp"><td colspan="10">${esc(m.grp)}</td></tr>` : ''; grp = m.grp;
+    if (m.error) return g + `<tr><td>${esc(m.name)}</td><td colspan="9" class="muted">${esc(m.error)}</td></tr>`;
+    const st = m.streak ? `<span class="${m.streak > 0 ? 'up' : 'dn'}" title="weeks in a row the net position moved this way">${m.streak > 0 ? '▲' : '▼'}${Math.abs(m.streak)}</span>` : '';
+    return g + `<tr class="click${m.k === cotSel ? ' sel' : ''}" data-k="${m.k}"><td>${esc(m.name)}</td><td class="n">${fmtS(m.mm)}</td><td class="n ${cls(m.chg1)}">${fmtS(m.chg1)}</td><td class="n ${cls(m.chg4)}">${fmtS(m.chg4)}</td>
+      <td class="n">${st}</td><td class="n">${pctBar(m.pct5)}</td><td class="n">${m.pct3 ?? '—'}</td><td class="n">${fmtS(m.mmPctOI, 1)}%</td><td class="n">${fmtS(m.pm)}</td><td class="n">${fmtK(m.oi)} <span class="${cls(m.oiChg1)}" style="font-size:11px">${fmtS(m.oiChg1 / 1e3, 1)}k</span></td></tr>`;
+  }).join('');
+  $('#cot-table').innerHTML = `<table><thead><tr><th>Market</th><th class="n">MM net</th><th class="n">Δ 1 wk</th><th class="n">Δ 4 wk</th><th class="n">Run</th><th class="n">5Y %ile</th><th class="n">3Y</th><th class="n">% of OI</th><th class="n" title="Producer/merchant/processor/user net: commercial hedgers">Commercial net</th><th class="n">Open interest, Δ wk</th></tr></thead><tbody>${rows}</tbody></table>`;
+  $('#cot-table').querySelectorAll('tr.click').forEach(tr => tr.onclick = () => { cotSel = tr.dataset.k; save('cotSel', cotSel); renderCOT(); });
+  const m = ms.find(x => x.k === cotSel && x.hist) || ms.find(x => x.hist); if (!m) return;
+  const cut = new Date(); cut.setFullYear(cut.getFullYear() - cotYears); const cs = cut.toISOString().slice(0, 10);
+  const h = m.hist.filter(x => x.d >= cs);
+  $('#cot-ct').textContent = `${m.name}: who holds what`;
+  $('#cot-cf').textContent = `5-year range of the managed-money net: ${fmtS(m.min5)} to ${fmtS(m.max5)}. ${m.exchange || ''}. Swap dealers and other reportables not shown.`;
+  mkChart('cot-chart', {type: 'line', data: {labels: h.map(x => x.d), datasets: [
+    {label: 'Managed money net', data: h.map(x => x.mm), borderColor: css('--orange'), backgroundColor: css('--orange') + '22', fill: 'origin', pointRadius: 0, borderWidth: 2, tension: .15},
+    {label: 'Commercial (producer/merchant) net', data: h.map(x => x.pm), borderColor: css('--blue'), pointRadius: 0, borderWidth: 1.5, tension: .15},
+    {label: 'Open interest', data: h.map(x => x.oi), borderColor: css('--grey'), borderDash: [4, 3], pointRadius: 0, borderWidth: 1, yAxisID: 'oi'}]},
+    options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
+      plugins: {tooltip: {callbacks: {label: c => `${c.dataset.label}: ${fmtS(c.parsed.y)}`}}},
+      scales: {x: {ticks: {maxTicksLimit: 8, callback(v) { return dLabel(this.getLabelForValue(v), {month: 'short', year: '2-digit'}); }}, grid: {display: false}},
+        y: {ticks: {callback: v => fmtK(v)}}, oi: {position: 'right', grid: {display: false}, ticks: {callback: v => fmtK(v)}, title: {display: true, text: 'open interest'}}}}});
+}
+
+/* ---------- livestock ---------- */
+function renderMeat() {
+  const sl = D('slaughter'); if (!sl) return noData($('#meat-cards'), 'slaughter');
+  $('#meat-cards').innerHTML = ['cattle', 'hogs'].map(sp => `<div class="card"><div class="ct">${sp === 'cattle' ? 'Cattle' : 'Hogs'} slaughter</div><div class="tw" id="sl-${sp}-t"></div><div class="cb"><canvas id="sl-${sp}-c"></canvas></div><div class="cf" id="sl-${sp}-f"></div></div>`).join('');
+  for (const sp of ['cattle', 'hogs']) {
+    const {daily, weekly} = sl[sp]; if (!daily?.length) continue;
+    const L = daily.at(-1), wk = weekly.at(-1);
+    const fullWeeks = weekly.filter(w => w.days >= 5);
+    const lastFull = fullWeeks.at(-1);
+    const row = (lbl, a, b, c, note = '') => `<tr><td>${lbl}</td><td class="n">${fmtN(a)}</td><td class="n ${cls(pctCh(a, b))}">${pc(pctCh(a, b))}</td><td class="n ${cls(pctCh(a, c))}">${pc(pctCh(a, c))}</td><td class="muted">${note}</td></tr>`;
+    // week to date vs the same days a year ago: the report's year-ago figure is per day, so sum this week's days
+    const wtdDays = daily.filter(x => x.d > (weekly.at(-2)?.w || '') ), wtdYr = wtdDays.every(x => ok(x.yr)) ? wtdDays.reduce((s, x) => s + x.yr, 0) : null;
+    $(`#sl-${sp}-t`).innerHTML = `<table><thead><tr><th></th><th class="n">head</th><th class="n">vs wk ago</th><th class="n">vs yr ago</th><th></th></tr></thead><tbody>
+      ${row(dLabel(L.d, {weekday: 'short', month: 'short', day: 'numeric'}), L.head, L.wk, L.yr, 'latest day (estimate)')}
+      ${row('Week to date', wk.head, null, wtdYr, `${wk.days} day${wk.days > 1 ? 's' : ''}`)}
+      ${lastFull ? row(`Week ending ${dLabel(lastFull.w)}`, lastFull.head, fullWeeks.at(-2)?.head, lastFull.yr, 'last full week') : ''}</tbody></table>`;
+    const w = fullWeeks.slice(-52);
+    mkChart(`sl-${sp}-c`, {type: 'bar', data: {labels: w.map(x => x.w), datasets: [
+      {type: 'bar', label: 'This year (weekly head)', data: w.map(x => x.head), backgroundColor: css(sp === 'cattle' ? '--orange' : '--purple') + 'aa', borderWidth: 0},
+      {type: 'line', label: 'Same week last year', data: w.map(x => x.yr), borderColor: css('--text'), borderWidth: 1.5, pointRadius: 0, tension: .2}]},
+      options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
+        plugins: {tooltip: {callbacks: {label: c => `${c.dataset.label}: ${fmtN(c.parsed.y)}`, footer: it => { const i = it[0].dataIndex; return `vs last year: ${pc(pctCh(w[i].head, w[i].yr))}`; }}}},
+        scales: {x: {ticks: {maxTicksLimit: 8, callback(v) { return dLabel(this.getLabelForValue(v), {month: 'short', year: '2-digit'}); }}, grid: {display: false}},
+          y: {beginAtZero: false, ticks: {callback: v => fmtK(v)}}}}});
+    const yy = w.filter(x => ok(x.yr)), ytd = yy.slice(-13);
+    $(`#sl-${sp}-f`).textContent = ytd.length ? `Last 13 full weeks vs a year earlier: ${pc(pctCh(ytd.reduce((s, x) => s + x.head, 0), ytd.reduce((s, x) => s + x.yr, 0)))}. Weeks run Sunday–Saturday.` : '';
+  }
+}
+
+/* ---------- basis ---------- */
+let basisCom = load('basisCom', 'Corn'); const basisOpen = new Set();
+const MON = {F: 'Jan', G: 'Feb', H: 'Mar', J: 'Apr', K: 'May', M: 'Jun', N: 'Jul', Q: 'Aug', U: 'Sep', V: 'Oct', X: 'Nov', Z: 'Dec'};
+const bfmt = (v, m) => ok(v) ? `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(Math.abs(v) % 1 ? 1 : 0)}${m ? ' ' + MON[m] : ''}` : '—';
+function renderBasis() {
+  const st = D('basis')?.states; if (!st) return noData($('#basis-table'), 'basis');
+  const match = c => basisCom === 'wheat' ? /wheat/i.test(c) : c === basisCom;
+  const rows = [];
+  for (const s of st) for (const [com, x] of Object.entries(s.summary)) if (match(com)) rows.push({s, com, x});
+  if (!rows.length) { $('#basis-table').innerHTML = '<div class="empty">No state reports this commodity today.</div>'; return; }
+  const body = rows.map(({s, com, x}) => {
+    const key = s.st + '|' + com, open = basisOpen.has(key);
+    const vsYr = ok(x.price) && ok(x.pYr) ? x.price - x.pYr : null;
+    let html = `<tr class="click${open ? ' sel' : ''}" data-key="${esc(key)}"><td>${open ? '▾' : '▸'} ${esc(s.name)}${basisCom === 'wheat' ? ' <span class="muted">' + esc(com.replace(/ wheat$/, '')) + '</span>' : ''}</td>
+      <td class="n">${ok(x.price) ? '$' + x.price.toFixed(2) : '—'}</td><td class="n ${cls(x.pWk)}">${ok(x.pWk) ? fmtS(x.pWk * 100) + '¢' : '—'}</td>
+      <td class="n"><b>${bfmt(x.mid, x.month)}</b>${x.nMid && x.nMid < x.n ? ` <span class="muted" title="${x.nMid} of ${x.n} regions quote this month">(${x.nMid}/${x.n})</span>` : ''}</td>
+      <td class="n ${cls(x.wk)}">${ok(x.wk) ? fmtS(x.wk, 1) + '¢' : '—'}</td>
+      <td class="n">${ok(x.pYr) ? '$' + x.pYr.toFixed(2) : '—'}</td><td class="n ${cls(vsYr)}">${ok(vsYr) ? fmtS(vsYr * 100) + '¢' : '—'}</td>
+      <td class="muted">${esc(x.dp || '')} · ${dLabel(s.date)}</td></tr>`;
+    if (open) html += s.rows.filter(r => r.com === com).map(r => `<tr class="detail"><td style="padding-left:22px">${esc(r.loc || '—')} <span class="muted">${esc(r.dp)}${r.mode && r.mode !== 'Truck' ? ' · ' + esc(r.mode) : ''}</span></td>
+      <td class="n">${ok(r.price) ? '$' + r.price.toFixed(2) : '—'}</td><td class="n">${ok(r.pWk) ? fmtS(r.pWk * 100) + '¢' : ''}</td>
+      <td class="n">${ok(r.bMin) ? (r.bMin === r.bMax && r.mMin === r.mMax ? bfmt(r.bMin, r.mMin) : `${bfmt(r.bMin, r.mMin)} to ${bfmt(r.bMax, r.mMax)}`) : '—'}</td>
+      <td class="n ${cls(r.wk)}">${ok(r.wk) ? fmtS(r.wk, 1) + '¢' : ''}</td><td class="n">${ok(r.pYr) ? '$' + r.pYr.toFixed(2) : ''}</td><td></td><td>day chg ${ok(r.dMin) ? fmtS(r.dMin) : '—'}${r.dMax !== r.dMin && ok(r.dMax) ? ' / ' + fmtS(r.dMax) : ''}¢</td></tr>`).join('');
+    return html;
+  }).join('');
+  $('#basis-table').innerHTML = `<table><thead><tr><th>State / report</th><th class="n">Cash avg</th><th class="n">Δ 1 wk</th><th class="n">Basis (¢ vs month)</th><th class="n">Basis Δ 1 wk</th><th class="n">Cash yr ago</th><th class="n">vs yr ago</th><th>Delivery · report date</th></tr></thead><tbody>${body}</tbody></table>`;
+  $('#basis-table').querySelectorAll('tr.click').forEach(tr => tr.onclick = () => { const k = tr.dataset.key; basisOpen.has(k) ? basisOpen.delete(k) : basisOpen.add(k); renderBasis(); });
+}
+
+/* ---------- weather ---------- */
+const pctCls = p => !ok(p) ? '' : p < 50 ? 'dn' : p < 80 ? 'hot' : p > 150 ? 'cold' : '';
+const tCls = t => !ok(t) ? '' : t >= 3 ? 'hot' : t <= -3 ? 'cold' : '';
+function renderWeather() {
+  const W = D('weather'); if (!W) return noData($('#wx-cards'), 'weather');
+  const regs = [...W.regions].sort((a, b) => (b.inSeason - a.inSeason));
+  $('#wx-cards').innerHTML = regs.map(r => {
+    const line = (lbl, s) => !s ? '' : `<tr><td>${lbl}</td><td class="n">${fmtN(s.p, 2)}"</td><td class="n ${pctCls(s.pPct)}">${ok(s.pPct) ? s.pPct + '%' : '—'}</td><td class="n ${tCls(s.tAnom)}">${ok(s.tAnom) ? fmtS(s.tAnom, 1) + '°' : '—'}</td><td class="n muted">${s.tn}–${s.tx}°</td>${r.livestock ? `<td class="n ${s.hotDays ? 'hot' : ''}">${s.hotDays}</td><td class="n ${s.coldDays ? 'cold' : ''}">${s.coldDays}</td>` : ''}</tr>`;
+    return `<div class="card wxc${r.inSeason ? '' : ' off'}"><div class="hd"><div><div class="ct" title="${esc(r.points.join(' · '))}">${esc(r.name)}</div><div class="cs">${esc(r.crops)}</div></div><span class="pill${r.inSeason ? ' on' : ''}">${r.inSeason ? 'in season' : 'off season'}</span></div>
+      <div class="tw"><table style="margin-top:4px"><thead><tr><th></th><th class="n">rain</th><th class="n">% norm</th><th class="n">temp vs norm</th><th class="n">low–high</th>${r.livestock ? `<th class="n" title="days with a high of ${W.hot}°F or more at any point">≥${W.hot}°</th><th class="n" title="days with a low of ${W.cold}°F or less at any point">≤${W.cold}°</th>` : ''}</tr></thead><tbody>
+      ${line('Last 7 days', r.last7)}${line('Last 30 days', r.last30)}${line('Next 7 days', r.next7)}${line('Days 8–16', r.next8_16)}</tbody></table></div>
+      <div class="cb sm"><canvas id="wx-${r.id}"></canvas></div></div>`;
+  }).join('');
+  for (const r of regs) {
+    const s = r.series; let cp = 0, cn = 0;
+    const obs = [], fc = [], nrm = [];
+    s.forEach((x, i) => { cp += x.p; cn += x.np ?? 0; obs.push(x.fc ? null : cp); fc.push(x.fc || (s[i + 1]?.fc) ? cp : null); nrm.push(ok(x.np) ? cn : null); });
+    mkChart('wx-' + r.id, {type: 'line', data: {labels: s.map(x => x.d), datasets: [
+      {label: 'Rain so far', data: obs, borderColor: css('--cyan'), pointRadius: 0, borderWidth: 2},
+      {label: 'Forecast', data: fc, borderColor: css('--cyan'), borderDash: [5, 3], pointRadius: 0, borderWidth: 2},
+      {label: 'Normal', data: nrm, borderColor: css('--grey'), pointRadius: 0, borderWidth: 1.5}]},
+      options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
+        plugins: {legend: {display: false}, tooltip: {callbacks: {title: it => dLabel(it[0].label, {weekday: 'short', month: 'short', day: 'numeric'}), label: c => ok(c.parsed.y) ? `${c.dataset.label}: ${c.parsed.y.toFixed(2)}"` : null}}},
+        scales: {x: {ticks: {maxTicksLimit: 6, callback(v) { return dLabel(this.getLabelForValue(v)); }}, grid: {display: false}}, y: {beginAtZero: true, title: {display: true, text: 'cumulative in.'}}}}});
+  }
+  const cpc = 'https://www.cpc.ncep.noaa.gov/products/predictions/';
+  $('#cpc').innerHTML = [['610day/610prcp.new.gif', '6–10 day precipitation'], ['610day/610temp.new.gif', '6–10 day temperature'],
+    ['814day/814prcp.new.gif', '8–14 day precipitation'], ['814day/814temp.new.gif', '8–14 day temperature'],
+    ['30day/off15_prcp.gif', 'Next month precipitation'], ['30day/off15_temp.gif', 'Next month temperature'],
+    ['long_range/lead14/off14_prcp.gif', 'Next 3 months precipitation'], ['long_range/lead14/off14_temp.gif', 'Next 3 months temperature']]
+    .map(([p, t]) => `<figure><a href="${cpc + p}" target="_blank" rel="noopener"><img src="${cpc + p}" alt="${t} outlook" loading="lazy"></a><figcaption>${t} · NOAA CPC</figcaption></figure>`).join('');
+}
+
+/* ---------- drought & ENSO ---------- */
+function renderDrought() {
+  const dr = D('drought');
+  if (!dr) noData($('#dr-table'), 'drought');
+  else {
+    const us = dr.us, L = us.at(-1), w4 = us.at(-5), y1 = us.at(-53) || us[0];
+    $('#dr-asof').textContent = `map valid ${dLabel(L.d, {month: 'short', day: 'numeric', year: 'numeric'})}`;
+    const spark = a => { if (!a?.length) return ''; const w = 70, h = 16, mx = Math.max(100, ...a); const pts = a.map((v, i) => `${(i / (a.length - 1) * w).toFixed(1)},${(h - v / mx * h).toFixed(1)}`).join(' ');
+      return `<svg width="${w}" height="${h}" style="vertical-align:middle"><polyline points="${pts}" fill="none" stroke="${css('--orange')}" stroke-width="1.5"/></svg>`; };
+    $('#dr-table').innerHTML = `<div class="ct">Area in drought (D1+), %</div><div class="cs" style="margin-bottom:4px">U.S. total ${fmtN(L.d1, 1)}% (4 wks ago ${fmtN(w4?.d1, 1)}%, a year ago ${fmtN(y1?.d1, 1)}%) · D2+ ${fmtN(L.d2, 1)}% · D3+ ${fmtN(L.d3, 1)}%</div>
+      <table><thead><tr><th>State</th><th class="n">D1+</th><th class="n">Δ 1 wk</th><th class="n">Δ 4 wk</th><th class="n">yr ago</th><th>26 wks</th></tr></thead><tbody>`
+      + dr.states.map(s => `<tr><td>${s.st}</td><td class="n">${fmtN(s.d1, 1)}</td><td class="n ${cls(-s.chg1)}">${fmtS(s.chg1, 1)}</td><td class="n ${cls(-s.chg4)}">${fmtS(s.chg4, 1)}</td><td class="n muted">${fmtN(s.yr, 1)}</td><td>${spark(s.spark)}</td></tr>`).join('')
+      + '</tbody></table><div class="cf">Green = drought shrinking, red = spreading.</div>';
+  }
+  const en = D('enso');
+  if (!en) return noData($('#enso'), 'enso');
+  const L = en.latest, col = L.phase === 'El Niño' ? css('--orange') : L.phase === 'La Niña' ? css('--blue') : css('--grey');
+  $('#enso').innerHTML = `<div class="ct">ENSO: <span style="color:${col}">${esc(en.status || L.phase)}</span></div>
+    <div class="cs">Oceanic Niño Index ${L.seas} ${L.yr}: <b style="color:${col}">${fmtS(L.anom, 2)}°C</b> (${esc(L.phase)}; ±0.5 is the threshold)</div>
+    ${en.synopsis ? `<p style="margin:6px 0">${esc(en.synopsis)}</p>` : ''}<div class="cb sm"><canvas id="oni-c"></canvas></div><div class="cf">CPC ENSO discussion${en.issued ? ', issued ' + esc(en.issued) : ''} · 3-month running Niño-3.4 anomaly</div>`;
+  mkChart('oni-c', {type: 'bar', data: {labels: en.oni.map(x => `${x.seas} ${String(x.yr).slice(2)}`), datasets: [{data: en.oni.map(x => x.anom),
+    backgroundColor: en.oni.map(x => x.anom >= .5 ? css('--orange') : x.anom <= -.5 ? css('--blue') : css('--grey'))}]},
+    options: {maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {x: {ticks: {maxTicksLimit: 6}, grid: {display: false}}, y: {title: {display: true, text: '°C'}}}}});
+}
+
+/* ---------- boot ---------- */
+seg($('#cal-tier'), d => { calTier = +d.t; save('calTier', calTier); renderCalendar(); });
+$('#cal-more').onclick = () => { calMore = !calMore; renderCalendar(); };
+seg($('#cot-range'), d => { cotYears = +d.y; save('cotYears', cotYears); renderCOT(); });
+seg($('#basis-com'), d => { basisCom = d.c; save('basisCom', basisCom); renderBasis(); });
+const syncSeg = (el, attr, v) => el.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset[attr] === String(v)));
+syncSeg($('#cal-tier'), 't', calTier); syncSeg($('#cot-range'), 'y', cotYears); syncSeg($('#basis-com'), 'c', basisCom);
+
+async function boot() {
+  // the hosted site serves its own copy; opened as a local file, read the published one
+  const urls = location.protocol === 'file:' ? ['https://grains.manasbafna.com/data/latest.json', 'https://drnas.github.io/grains-monitor/data/latest.json'] : ['data/latest.json'];
+  for (const u of urls) { try { const r = await fetch(u + '?t=' + Math.floor(Date.now() / 3e5)); if (r.ok) { SNAP = await r.json(); break; } } catch (e) {} }
+  if (!SNAP) { $('#stamp').textContent = 'could not load data/latest.json'; return; }
+  renderStatus();
+  for (const f of [renderCalendar, renderCOT, renderMeat, renderBasis, renderWeather, renderDrought]) {
+    try { f(); } catch (e) { console.error(f.name, e); }
+  }
+}
+boot();
+</script>
+</body>
+</html>
