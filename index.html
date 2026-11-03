@@ -103,6 +103,11 @@ tr.detail td{color:var(--muted);font-size:11.5px;background:#11161d}
 .imgs figcaption{font-size:11.5px;color:var(--muted);margin-top:4px}
 .empty{color:var(--muted);font-style:italic;padding:10px}
 .wait{border-style:dashed}
+.glance{margin:0;padding-left:18px} .glance li{margin:3px 0}
+.vr h4{font-size:12px;margin:8px 0 2px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.vr ul{margin:0;padding-left:18px} .vr li{margin:2px 0}
+.vr a{color:var(--blue)}
+.vr .flag{color:var(--warn);font-size:11.5px}
 footer{margin-top:34px;color:var(--muted);font-size:11.5px;line-height:1.6}
 footer a{color:inherit}
 </style>
@@ -111,7 +116,7 @@ footer a{color:inherit}
 <header>
   <div class="hrow">
     <h1>Grains &amp; Livestock Monitor</h1>
-    <nav><a href="#cal">Calendar</a><a href="#cot">Positioning</a><a href="#meat">Livestock</a><a href="#basis">Basis</a><a href="#wx">Weather</a><a href="#drought">Drought &amp; ENSO</a></nav>
+    <nav><a href="#recap">Recap</a><a href="#cal">Calendar</a><a href="#cot">Positioning</a><a href="#meat">Livestock</a><a href="#basis">Basis</a><a href="#wx">Weather</a><a href="#drought">Drought &amp; ENSO</a></nav>
     <span class="sp"></span>
     <span class="muted" id="stamp">loading…</span>
   </div>
@@ -120,6 +125,14 @@ footer a{color:inherit}
   <details id="status"><summary><b>Data status</b> <span id="stsum" class="muted"></span></summary>
     <div class="chips" id="strip"></div><div id="notes"></div>
   </details>
+
+  <section id="recap">
+    <h2>Daily recap <span class="ctl muted" id="recap-asof"></span></h2>
+    <div class="grid g2">
+      <div class="card"><div class="ct">At a glance</div><div class="cs">Written from this page's own data at each build: what changed and what's next.</div><ul class="glance" id="glance"></ul></div>
+      <div class="card vr" id="video"></div>
+    </div>
+  </section>
 
   <section id="cal">
     <h2>Report calendar <span class="ctl seg" id="cal-tier"><button data-t="1">Major</button><button data-t="2" class="on">Major + weekly</button><button data-t="3">All</button></span></h2>
@@ -407,6 +420,58 @@ function renderDrought() {
     options: {maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {x: {ticks: {maxTicksLimit: 6}, grid: {display: false}}, y: {title: {display: true, text: '°C'}}}}});
 }
 
+
+/* ---------- daily recap ---------- */
+function renderGlance() {
+  const out = [], now = Date.now();
+  const ev = D('calendar')?.events || [];
+  const nx = ev.find(e => e.tier === 1 && new Date(e.at) > now);
+  if (nx) { const same = ev.filter(e => e.tier === 1 && e.at === nx.at), d = (new Date(nx.at) - now) / 864e5;
+    out.push(`<b>Next big report:</b> ${same.map(e => esc(e.name)).join(' + ')}, ${dLabel(nx.date, {weekday: 'short', month: 'short', day: 'numeric'})} ${nx.time} ET (${d < 1 ? 'in ' + Math.round(d * 24) + 'h' : 'in ' + Math.floor(d) + 'd'}).`); }
+  const wk = ev.filter(e => e.tier === 1 && new Date(e.at) > now && new Date(e.at) - now < 7 * 864e5 && e !== nx && !(nx && e.at === nx.at));
+  if (wk.length) out.push(`<b>Also this week:</b> ${wk.map(e => `${esc(e.name)} (${dLabel(e.date, {weekday: 'short'})})`).join(', ')}.`);
+  const ms = (D('cot')?.markets || []).filter(m => ok(m.chg1) && ok(m.oi));
+  if (ms.length) {
+    const big = [...ms].sort((a, b) => Math.abs(b.chg1 / b.oi) - Math.abs(a.chg1 / a.oi)).slice(0, 3);
+    out.push(`<b>Funds, week to ${dLabel(S('cot').latest)}:</b> ` + big.map(m => `${esc(m.name)} <span class="${cls(m.chg1)}">${fmtS(m.chg1)}</span> to ${fmtS(m.mm)} (${ord(m.pct5)} pct.)`).join('; ') + '.');
+    const ext = ms.filter(m => m.pct5 >= 90 || m.pct5 <= 10);
+    if (ext.length) out.push(`<b>At 5-year extremes:</b> ` + ext.map(m => `${esc(m.name)} ${m.pct5 >= 90 ? '<span class="hot">long</span>' : '<span class="cold">short</span>'} (${ord(m.pct5)})`).join(', ') + '.');
+  }
+  const sl = D('slaughter');
+  if (sl) out.push('<b>Slaughter, last full week vs a year ago:</b> ' + ['cattle', 'hogs'].map(sp => { const w = (sl[sp]?.weekly || []).filter(x => x.days >= 5).at(-1);
+    return w ? `${sp} ${fmtN(w.head)} (<span class="${cls(pctCh(w.head, w.yr))}">${pc(pctCh(w.head, w.yr))}</span>)` : null; }).filter(Boolean).join(', ') + '.');
+  const st = D('basis')?.states || [];
+  for (const com of ['Corn', 'Soybeans']) {
+    const mv = st.map(s => ({s, x: s.summary[com]})).filter(o => ok(o.x?.wk) && o.s.st.length === 2).sort((a, b) => Math.abs(b.x.wk) - Math.abs(a.x.wk)).slice(0, 3);
+    if (mv.length) out.push(`<b>${com} basis, biggest weekly moves:</b> ` + mv.map(o => `${o.s.st} <span class="${cls(o.x.wk)}">${fmtS(o.x.wk, 1)}¢</span> to ${bfmt(o.x.mid, o.x.month)}`).join(', ') + '.');
+  }
+  const W = D('weather')?.regions || [];
+  const wx = W.filter(r => r.inSeason && ok(r.next7?.pPct) && (r.next7.pPct < 50 || r.next7.pPct > 175));
+  if (wx.length) out.push('<b>Weather, next 7 days (in-season regions):</b> ' + wx.map(r => `${esc(r.name)} ${r.next7.pPct < 50 ? '<span class="hot">dry</span>' : '<span class="cold">wet</span>'} (${r.next7.pPct}% of normal${ok(r.next7.tAnom) ? ', ' + fmtS(r.next7.tAnom, 1) + '°F' : ''})`).join('; ') + '.');
+  else if (W.length && W.some(r => ok(r.next7?.pPct))) out.push('<b>Weather:</b> no in-season region is forecast far from normal rain over the next 7 days.');
+  const feed = W.find(r => r.livestock);
+  if (feed?.next7 && (feed.next7.hotDays || feed.next7.coldDays)) out.push(`<b>Feedlots:</b> ${feed.next7.hotDays ? feed.next7.hotDays + ' day(s) at ' + (D('weather').hot) + '°F+' : ''}${feed.next7.hotDays && feed.next7.coldDays ? ', ' : ''}${feed.next7.coldDays ? feed.next7.coldDays + ' day(s) at ' + D('weather').cold + '°F or colder' : ''} in the next 7 days.`);
+  const dr = D('drought')?.states || [];
+  const dm = dr.filter(x => ok(x.chg1) && Math.abs(x.chg1) >= 5).sort((a, b) => Math.abs(b.chg1) - Math.abs(a.chg1)).slice(0, 4);
+  if (dm.length) out.push(`<b>Drought (D1+), week to ${dLabel(S('drought').latest)}:</b> ` + dm.map(x => `${x.st} <span class="${cls(-x.chg1)}">${fmtS(x.chg1, 1)} pts</span>`).join(', ') + '.');
+  const en = D('enso'); if (en?.status) out.push(`<b>ENSO:</b> ${esc(en.status)}, ONI ${fmtS(en.latest.anom, 2)}°C.`);
+  $('#glance').innerHTML = out.length ? out.map(x => `<li>${x}</li>`).join('') : '<li class="muted">Nothing to report yet.</li>';
+}
+let recapIdx = 0;
+function renderVideo() {
+  const rs = D('recap')?.recaps || [];
+  if (!rs.length) { $('#video').innerHTML = '<div class="ct">Video recap</div><div class="empty">No video summary yet. The daily summary task adds one each morning after the new <i>Grain Markets and Other Stuff</i> episode.</div>'; return; }
+  const r = rs[Math.min(recapIdx, rs.length - 1)];
+  $('#recap-asof').textContent = `latest video ${dLabel(rs[0].date, {weekday: 'short', month: 'short', day: 'numeric'})}`;
+  $('#video').innerHTML = `<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><div><div class="ct">Video recap: ${esc(r.channel)}</div>
+      <div class="cs"><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a> · ${dLabel(r.published || r.date, {month: 'short', day: 'numeric', year: 'numeric'})}</div></div>
+      ${rs.length > 1 ? `<select id="recap-pick">${rs.map((x, i) => `<option value="${i}"${i === recapIdx ? ' selected' : ''}>${dLabel(x.date, {weekday: 'short', month: 'short', day: 'numeric'})}</option>`).join('')}</select>` : ''}</div>
+    ${r.sections.map(sec => `<h4>${esc(sec.topic)}</h4><ul>${sec.bullets.map(b => `<li>${esc(b)}</li>`).join('')}</ul>`).join('')}
+    ${r.flags.length ? `<div class="flag" style="margin-top:6px">Caption check: ${r.flags.map(esc).join(' · ')}</div>` : ''}
+    <div class="cf">A summary of the video, written by an automated assistant from YouTube's captions; watch the video for the full discussion. Not affiliated with the channel.</div>`;
+  const pick = $('#recap-pick'); if (pick) pick.onchange = () => { recapIdx = +pick.value; renderVideo(); };
+}
+
 /* ---------- boot ---------- */
 seg($('#cal-tier'), d => { calTier = +d.t; save('calTier', calTier); renderCalendar(); });
 $('#cal-more').onclick = () => { calMore = !calMore; renderCalendar(); };
@@ -421,7 +486,7 @@ async function boot() {
   for (const u of urls) { try { const r = await fetch(u + '?t=' + Math.floor(Date.now() / 3e5)); if (r.ok) { SNAP = await r.json(); break; } } catch (e) {} }
   if (!SNAP) { $('#stamp').textContent = 'could not load data/latest.json'; return; }
   renderStatus();
-  for (const f of [renderCalendar, renderCOT, renderMeat, renderBasis, renderWeather, renderDrought]) {
+  for (const f of [renderGlance, renderVideo, renderCalendar, renderCOT, renderMeat, renderBasis, renderWeather, renderDrought]) {
     try { f(); } catch (e) { console.error(f.name, e); }
   }
 }

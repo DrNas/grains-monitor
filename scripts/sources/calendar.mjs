@@ -101,8 +101,9 @@ async function nassMonth(y, m) {
   return out;
 }
 
-export async function load({now}) {
+export async function load({now, prev}) {
   const today = iso(now), notes = [];
+  let partial = false;
   const from = addDays(today, -7), to = addDays(today, 31 * MONTHS_AHEAD);
   let events = [];
   for (let k = -1; k < MONTHS_AHEAD; k++) {
@@ -111,7 +112,13 @@ export async function load({now}) {
       const ev = await nassMonth(d.getUTCFullYear(), d.getUTCMonth() + 1);
       if (!ev.length && k >= 0) notes.push(`NASS has not posted ${d.toISOString().slice(0, 7)} yet`);
       events.push(...ev);
-    } catch (e) { notes.push(`NASS ${d.toISOString().slice(0, 7)}: ${e.message.slice(0, 60)}`); if (k === 0) throw e; }
+    } catch (e) {
+      // NASS's firewall turns requests away now and then: keep that month's NASS dates from the last good build
+      const ym = d.toISOString().slice(0, 7), old = (prev?.events || []).filter(x => x.src === 'USDA NASS' && x.date.startsWith(ym));
+      events.push(...old.map(({at, ...x}) => x));
+      notes.push(`NASS ${ym}: ${e.message.slice(0, 60)}${old.length ? ` (kept ${old.length} dates from the last good build)` : ''}`);
+      if (k >= 0 && !old.length) partial = true;
+    }
     await sleep(1500);
   }
   const manual = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/calendar-manual.json'), 'utf8'));
@@ -124,6 +131,6 @@ export async function load({now}) {
   events = events.filter(e => e.date >= from && e.date <= to)
     .map(e => ({...e, at: etToUTC(e.date, e.time)}))
     .sort((a, b) => a.at < b.at ? -1 : a.at > b.at ? 1 : a.tier - b.tier);
-  return {data: {events, holidays: [...holidays(now.getUTCFullYear()), ...holidays(now.getUTCFullYear() + 1)]}, latest: today, n: events.length,
+  return {partial, data: {events, holidays: [...holidays(now.getUTCFullYear()), ...holidays(now.getUTCFullYear() + 1)]}, latest: today, n: events.length,
     note: notes.join(' · '), src: 'USDA NASS release calendar, USDA WASDE schedule, CFTC/FAS/EIA weekly rules'};
 }

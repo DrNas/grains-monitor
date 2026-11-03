@@ -12,7 +12,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PAGES = (process.env.PAGES_URL ? [process.env.PAGES_URL] : ['https://grains.manasbafna.com/', 'https://drnas.github.io/grains-monitor/']);
 
 const SOURCES = [
-  ['calendar', 'Report calendar'], ['cot', 'COT positioning'], ['slaughter', 'Livestock slaughter'],
+  ['recap', 'Video recap'], ['calendar', 'Report calendar'], ['cot', 'COT positioning'], ['slaughter', 'Livestock slaughter'],
   ['basis', 'Cash grain basis'], ['weather', 'Weather'], ['drought', 'Drought Monitor'], ['enso', 'ENSO'],
 ];
 
@@ -38,7 +38,7 @@ async function main() {
     const t0 = Date.now();
     try {
       const mod = await import(`./sources/${id}.mjs`);
-      const r = await mod.load({now, keys});
+      const r = await mod.load({now, keys, prev: prev?.series?.[id]?.data || null});
       series[id] = {label, state: r.partial ? 'PARTIAL' : 'OK', latest: r.latest || null, n: r.n ?? null, src: r.src || '', note: r.note || '',
         built: now.toISOString(), data: r.data};
       console.log(`${id}: ${series[id].state} (${((Date.now() - t0) / 1000).toFixed(1)}s) latest ${r.latest}${r.note ? ' · ' + r.note : ''}`);
