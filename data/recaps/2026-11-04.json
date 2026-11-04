@@ -5,35 +5,52 @@
   "url": "https://www.youtube.com/watch?v=vq5cLpL_0EM",
   "published": "2026-11-04",
   "sections": [
+    {"topic": "Overnight (5:23am CT)", "bullets": [
+      "Dec corn −2¼ at 440¼; overnight low 438½, a fresh low for the move",
+      "Jan beans −11½ at ~12.02, also fresh lows",
+      "Dec CBOT wheat unchanged at 599¾; KC +2½ at 638¾; MGEX +¼ at 619¾"
+    ]},
     {"topic": "Election / policy", "bullets": [
-      "Video says Democrats projected to take House and Senate, flipping Senate seats in IA, KS, NC, OH, SC, TX plus OH/TX governor races",
-      "$8B farmer relief package seen safe: approved via CCC, no Congress needed"
+      "Dems projected to win both chambers (per AP): at least 245 House seats; Senate flips in IA, KS, NC, OH, SC, TX",
+      "Likely Dem targets: Trump’s tariff authority, limits on Iran war funding, investigations, healthcare",
+      "$8B farmer fuel relief is safe because it went through USDA/CCC, not Congress. The extra aid Trump floated if the GOP won is now off the table",
+      "Hosts blame affordability (gas and diesel) for the GOP loss"
     ]},
-    {"topic": "Crop size: StoneX vs USDA", "bullets": [
-      "Corn yield 183.1 bpa vs USDA 181.2; production 16.20 bbu; Iowa 216 bpa",
-      "Soybean yield 55.0 bpa vs USDA 53.1; production 4.73 bbu; Illinois 68 bpa"
+    {"topic": "StoneX crop estimates", "bullets": [
+      "Corn yield 183.1 bpa (prior 182.1) vs USDA 181.2; production 16.2B bu vs USDA 16.03B, about 169M bu above USDA",
+      "MN corn 207 vs USDA 195; StoneX also well above USDA in ND, SD, KS, WI, OH",
+      "Soy yield 55.0 bpa (prior 54.1) vs USDA 53.1; production 4.73B bu vs USDA 4.56B, about +163M bu",
+      "Hosts’ view: the price action suggests the trade is already using StoneX-type yields, not USDA’s"
     ]},
-    {"topic": "Price action", "bullets": [
-      "Tue: Dec corn -~6c to ~4.43, lowest close since early July; export sales -34% y/y",
-      "Jan beans -3c to 12.14 on big-crop expectations",
-      "Wheat lower despite Russia-Ukraine peace-talk optimism",
-      "Wed morning: grains quiet, stocks higher"
+    {"topic": "Price action (Tue settles)", "bullets": [
+      "Dec corn about −6 to ~443, lowest settle since early July. It has gone from the July lows to the Sept highs and back",
+      "Jan beans −3 to 12.14. Weak even though export sales and crush are strong, so crop size is seen as the driver",
+      "Dec SRW wheat tested the July lows near 590½. The trade is ignoring Russia/Ukraine peace talk and focusing on bigger US winter wheat plantings"
     ]},
-    {"topic": "Exports / flash sales", "bullets": [
-      "Corn: 315k t to Mexico, 136k t to South Korea (2026/27)",
-      "Soybeans: 134k t to unknown destinations"
+    {"topic": "Exports / demand", "bullets": [
+      "Flash sales: 12M bu corn to Mexico, 5M corn to S. Korea, 5M beans to unknown (all current MY)",
+      "Corn export book is about 34% behind last year, while USDA projects only about −4% for the year",
+      "ADM raised full-year guidance for the 3rd straight quarter. Ag Services & Oilseeds Q3 op profit $778M (more than doubled); crush $311M vs $13M a year ago. Stock −7% Tue on a revenue miss but +22.8% YTD",
+      "USDA cash crush margins: ~$4.30/bu IN/OH, $4.22 IL, under $4 MN/IA"
     ]},
-    {"topic": "ADM / crush margins", "bullets": [
-      "ADM raised outlook for 3rd straight quarter; crush profit $311M vs $13M a year ago",
-      "US-Iran war lifting crude and biofuel demand; ~$350M expected benefit from 45Z credit"
+    {"topic": "Farm sentiment (Purdue/CME Ag Economy Barometer)", "bullets": [
+      "126 in Oct vs 123 in Sept; current conditions +16, future expectations −2",
+      "Strong balance sheet: 62% vs 76% in Jan",
+      "35% think tariffs help ag vs 58% a year ago; 51% now say they hurt",
+      "Right direction: 48%, vs ~72–75% a year ago"
     ]},
-    {"topic": "Farmer sentiment / other", "bullets": [
-      "Purdue/CME Ag Barometer 126 in Oct; strong balance sheet 62% vs 76% in Jan",
-      "35% think higher tariffs help ag economy vs 58% a year ago",
-      "ACA premiums seen +13% in 2027 after +26% this year (3% VT to 28% AZ); enhanced credits expired above 400% FPL"
+    {"topic": "Cattle / outside / macro", "bullets": [
+      "LC −1.55 to −2.68; feeders −2.80 to −4.33",
+      "S&P +~1% after a sharp drop overnight on the results. Tech was briefly hit on the Texas Dem governor’s stance on data centers, then recovered",
+      "Rates: Treasuries slightly firmer, USD slightly lower. No Fed comments",
+      "Dec WTI −0.87 at 95.22",
+      "ACA premiums expected +13% in 2027 after +26% this year. Host argues CPI’s health insurance index understates real premium inflation"
     ]}
   ],
   "flags": [
-    "No transcript available yet (captions not generated at run time); summary built from the video's own written recap and chapters, so host commentary is not captured"
+    "Jan beans were captioned as “11 12 cents at 12:02”, read here as −11½ at ~12.02",
+    "“Cornon/Dorn” means corn and “D contract” likely means Dec wheat",
+    "Election results and the Iran war are as stated in the video; not verified",
+    "Not covered in this episode: China/trade, crop progress, fund positioning, South America weather"
   ]
 }
