@@ -27,6 +27,7 @@ The NOAA outlook maps and the Drought Monitor map are hot-linked images (always 
 
 ## Details worth knowing
 - **nass.usda.gov and cftc.gov** reject non-browser user agents (Azure/Akamai firewalls), so `calendar.mjs` sends a browser UA for those two. If the NASS calendar starts failing, check that first.
+- **NASS blocking**: nass.usda.gov sometimes answers 403, or 200 with a page that has no calendar table. A missing table for a month of the current year counts as blocked (only a later year can be "not posted yet"). A blocked month falls back to the previous snapshot's NASS dates, then to `data/nass-calendar-cache.json` (copied from NASS's pages on 2026-11-03; add 2027 when NASS posts it).
 - **WASDE dates** are not in any feed: add each year to `data/calendar-manual.json` when USDA posts them (the calendar note warns 60 days ahead). 2026 is in; 2027 was not published as of Nov 3, 2026.
 - **Basis**: "current = No" rows are forward bids and are skipped. A state's basis is averaged only across rows quoted against the same futures month (the month most rows use), because regions roll contracts on different days; the page shows "(n/m)" when not all regions use it. Weekly change compares to the report ≥6 days earlier, same region and month only.
 - **Slaughter**: each daily report restates the previous days; the newest report wins for each date. The year-ago figure is per day, so week-to-date vs last year sums this week's days.

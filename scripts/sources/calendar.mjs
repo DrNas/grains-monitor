@@ -84,9 +84,20 @@ function weekly(from, to, cot) {
   return out;
 }
 
+// data/nass-calendar-cache.json: {date, time, name} rows, given tier and markets from the NASS list above
+function savedNass() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(ROOT, 'data/nass-calendar-cache.json'), 'utf8')).events.map(e => {
+      const hit = NASS.find(([re]) => re.test(e.name)); return hit ? {date: e.date, time: e.time, name: e.name, tier: hit[1], markets: hit[2], src: 'USDA NASS'} : null;
+    }).filter(Boolean);
+  } catch (e) { return []; }
+}
+
 async function nassMonth(y, m) {
   const html = await getText(`https://www.nass.usda.gov/Publications/Calendar/reports_by_date.php?view=c&js=1&month=${m}&year=${y}`, {timeout: 60, headers: BROWSER});
-  const i = html.indexOf('<table class="calendar">'); if (i < 0) return [];
+  // No calendar table: either NASS hasn't posted that year yet (it posts a whole year at once, so only possible for
+  // a later year), or the firewall sent a block/challenge page with HTTP 200. Return null; the caller decides.
+  const i = html.indexOf('<table class="calendar">'); if (i < 0) return null;
   const tab = html.slice(i, html.indexOf('</table>', i)), out = [];
   for (const [, cell] of tab.matchAll(/<td class="calendar[^"]*"\s*>([\s\S]*?)<\/td>/g)) {
     const day = /^\s*&nbsp;(\d+)/.exec(cell)?.[1]; if (!day) continue;
@@ -110,13 +121,19 @@ export async function load({now, prev}) {
     const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + k, 1));
     try {
       const ev = await nassMonth(d.getUTCFullYear(), d.getUTCMonth() + 1);
-      if (!ev.length && k >= 0) notes.push(`NASS has not posted ${d.toISOString().slice(0, 7)} yet`);
+      if (ev === null) {
+        if (d.getUTCFullYear() > now.getUTCFullYear()) { notes.push(`NASS has not posted ${d.toISOString().slice(0, 7)} yet`); continue; }
+        throw new Error('page came back without its calendar (likely blocked)');
+      }
       events.push(...ev);
     } catch (e) {
-      // NASS's firewall turns requests away now and then: keep that month's NASS dates from the last good build
-      const ym = d.toISOString().slice(0, 7), old = (prev?.events || []).filter(x => x.src === 'USDA NASS' && x.date.startsWith(ym));
-      events.push(...old.map(({at, ...x}) => x));
-      notes.push(`NASS ${ym}: ${e.message.slice(0, 60)}${old.length ? ` (kept ${old.length} dates from the last good build)` : ''}`);
+      // NASS's firewall turns requests away now and then: keep that month's NASS dates from the last good build,
+      // or failing that from the saved copy in data/nass-calendar-cache.json
+      const ym = d.toISOString().slice(0, 7);
+      let old = (prev?.events || []).filter(x => x.src === 'USDA NASS' && x.date.startsWith(ym)).map(({at, ...x}) => x), from = 'the last good build';
+      if (!old.length) { old = savedNass().filter(x => x.date.startsWith(ym)); from = 'the saved NASS calendar'; }
+      events.push(...old);
+      notes.push(`NASS ${ym}: ${e.message.slice(0, 60)}${old.length ? ` (kept ${old.length} dates from ${from})` : ''}`);
       if (k >= 0 && !old.length) partial = true;
     }
     await sleep(1500);
