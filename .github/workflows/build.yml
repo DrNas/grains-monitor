@@ -5,6 +5,8 @@ on:
   # everything, whichever runs last wins. Times are UTC; New York is UTC-5 in winter, UTC-4 in summer.
   schedule:
     - cron: '17 12 * * *'      # ~7:17am ET: overnight weather run, prior-day basis and slaughter
+    - cron: '45 14 * * 1-5'    # 10:45am ET in summer (EDT): morning USDA livestock reports, EIA 10:30 release
+    - cron: '45 15 * * 1-5'    # 10:45am ET in winter (EST); the "10:45 gate" step skips whichever of the two is off by an hour
     - cron: '23 17 * * 1-5'    # ~12:23pm ET: WASDE / Crop Production (noon), morning slaughter estimate
     - cron: '52 20 * * 1-5'    # ~3:52pm ET: NASS 3pm reports, COT (Fri 3:30pm)
     - cron: '37 22 * * 1-5'    # ~5:37pm ET: state grain bids (mid-afternoon), Crop Progress (Mon 4pm)
@@ -31,11 +33,27 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
+      # The 10:45am ET run is scheduled at both 14:45 and 15:45 UTC; only the one that is 10:45 in New York
+      # (14:45 while daylight saving time is on, 15:45 otherwise) goes ahead.
+      - name: 10:45 gate
+        id: gate
+        env:
+          SCHED: ${{ github.event.schedule }}
+        run: |
+          zone=$(TZ=America/New_York date +%Z)
+          skip=false
+          if [ "$SCHED" = "45 14 * * 1-5" ] && [ "$zone" != "EDT" ]; then skip=true; fi
+          if [ "$SCHED" = "45 15 * * 1-5" ] && [ "$zone" != "EST" ]; then skip=true; fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+          echo "schedule='$SCHED' New York zone=$zone skip=$skip"
       - uses: actions/checkout@v4
+        if: steps.gate.outputs.skip != 'true'
       - uses: actions/setup-node@v4
+        if: steps.gate.outputs.skip != 'true'
         with:
           node-version: 22
       - name: Fetch every source and build the snapshot
+        if: steps.gate.outputs.skip != 'true'
         id: build
         env:
           MMN_API_KEY: ${{ secrets.MMN_API_KEY }}
@@ -44,13 +62,16 @@ jobs:
           EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
         run: node scripts/build-data.mjs
       - uses: actions/configure-pages@v5
+        if: steps.gate.outputs.skip != 'true'
       - uses: actions/upload-pages-artifact@v3
+        if: steps.gate.outputs.skip != 'true'
         with:
           path: _site
       - id: deploy
+        if: steps.gate.outputs.skip != 'true'
         uses: actions/deploy-pages@v4
       - name: Flag sources that failed today
-        if: steps.build.outputs.failed != ''
+        if: steps.gate.outputs.skip != 'true' && steps.build.outputs.failed != ''
         run: |
           echo "::error::Failed today (the previous copy was kept if there was one): ${{ steps.build.outputs.failed }}"
           exit 1
