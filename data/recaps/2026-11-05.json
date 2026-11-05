@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-05",
+  "channel": "Grain Markets and Other Stuff",
+  "title": "Is China Backing Out?? Tough Talk on US Ag Purchases Following Blue Wave Election",
+  "url": "https://www.youtube.com/watch?v=XI1ai0ltbD0",
+  "published": "2026-11-05",
+  "sections": [
+    {"topic": "China / trade", "bullets": [
+      "China says it will buy more US ag only once the $30B-for-$30B tariff-cut deal is implemented. The video frames the deal as at risk",
+      "China’s non-soy US ag purchases were $7.2B through September, the lowest for that period since 2019"
+    ]},
+    {"topic": "Exports / demand", "bullets": [
+      "Flash sale: 167k MT (~6 mbu) soybeans to Spain, 26/27 delivery",
+      "US soybean sales are running ~80% ahead of last year’s pace",
+      "Ethanol output was 1.14m bpd, the second-highest on record (+2.2% w/w)",
+      "Ethanol margins are +30–70c/gal"
+    ]},
+    {"topic": "Price action", "bullets": [
+      "Jan beans fell ~12c to ~12.02, the lowest since mid-August, on weaker crude and the big-crop outlook",
+      "Dec corn rose 2c to 4.44 on an oversold bounce",
+      "Wheat was lower on hopes for Russia–Ukraine peace talks"
+    ]},
+    {"topic": "South America", "bullets": [
+      "Rabobank sees Brazil’s soy crop at 178 MMT, vs USDA’s record 186. It expects exports to dip to 113 MMT",
+      "Rabobank cites rising costs, tight margins and El Niño"
+    ]},
+    {"topic": "Outside markets / macro", "bullets": [
+      "WTI fell 8.3% to $88.12, its lowest close since late August, on US–Iran deal hopes after Democrats took both chambers. Some analysts call the drop overdone",
+      "There’s a chapter on Vance comments, but the description doesn’t say what was said",
+      "Rates/Fed: nothing mentioned"
+    ]},
+    {"topic": "Industry / policy", "bullets": [
+      "Deere is closing its Ottumwa and Clarion, Iowa plants and moving sugar cane harvester production to Brazil",
+      "USDA and CFTC signed an agreement on oversight and data sharing",
+      "Commitments of Traders reports go twice weekly starting December"
+    ]}
+  ],
+  "flags": [
+    "No auto-captions yet (video ~4h old at the time): summary built from the video's description and chapter list, not from what was said on air",
+    "Not in the description: fund positioning, crop progress, cattle"
+  ]
+}
