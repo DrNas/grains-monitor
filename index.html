@@ -151,6 +151,7 @@ footer a{color:inherit}
       <div class="card tw" id="cot-table"></div>
       <div class="card">
         <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><div><div class="ct" id="cot-ct"></div><div class="cs">contracts, net long (+) / short (−)</div></div>
+          <span class="seg" id="cot-over" title="what the right-hand axis shows"><button data-o="px" class="on">Price</button><button data-o="oi">Open interest</button></span>
           <span class="seg" id="cot-range"><button data-y="1">1Y</button><button data-y="3" class="on">3Y</button><button data-y="6">All</button></span></div>
         <div class="cb" style="height:320px"><canvas id="cot-chart"></canvas></div>
         <div class="cf" id="cot-cf"></div>
@@ -266,7 +267,7 @@ setInterval(() => document.querySelectorAll('.nbox .big[data-at]').forEach(el =>
 }), 20000);
 
 /* ---------- COT ---------- */
-let cotSel = load('cotSel', 'corn'), cotYears = load('cotYears', 3);
+let cotSel = load('cotSel', 'corn'), cotYears = load('cotYears', 3), cotOver = load('cotOver', 'px');
 function pctBar(p) {
   if (!ok(p)) return '—';
   const col = p >= 90 ? css('--long') : p <= 10 ? css('--short') : css('--grey');
@@ -294,15 +295,20 @@ function renderCOT() {
   const cut = new Date(); cut.setFullYear(cut.getFullYear() - cotYears); const cs = cut.toISOString().slice(0, 10);
   const h = m.hist.filter(x => x.d >= cs);
   $('#cot-ct').textContent = `${m.name}: who holds what`;
-  $('#cot-cf').textContent = `5-year range of the managed-money net: ${fmtS(m.min5)} to ${fmtS(m.max5)}. ${m.exchange || ''}. Swap dealers and other reportables not shown.`;
+  const showPx = cotOver === 'px' && m.px && h.some(x => ok(x.px));
+  $('#cot-cf').textContent = `5-year range of the managed-money net: ${fmtS(m.min5)} to ${fmtS(m.max5)}. ${m.exchange || ''}. Swap dealers and other reportables not shown.`
+    + (cotOver === 'px' ? (showPx ? ` Price: Yahoo Finance ${m.px.sym} continuous front month, close on each report's Tuesday (${m.px.unit}); it steps at contract rolls.` : ' No price series for this market (Yahoo has none), showing open interest.') : '');
+  const right = showPx
+    ? {label: `Price (${m.px.unit})`, data: h.map(x => x.px ?? null), borderColor: css('--text'), pointRadius: 0, borderWidth: 1.3, yAxisID: 'oi', spanGaps: true}
+    : {label: 'Open interest', data: h.map(x => x.oi), borderColor: css('--grey'), borderDash: [4, 3], pointRadius: 0, borderWidth: 1, yAxisID: 'oi'};
   mkChart('cot-chart', {type: 'line', data: {labels: h.map(x => x.d), datasets: [
     {label: 'Managed money net', data: h.map(x => x.mm), borderColor: css('--orange'), backgroundColor: css('--orange') + '22', fill: 'origin', pointRadius: 0, borderWidth: 2, tension: .15},
     {label: 'Commercial (producer/merchant) net', data: h.map(x => x.pm), borderColor: css('--blue'), pointRadius: 0, borderWidth: 1.5, tension: .15},
-    {label: 'Open interest', data: h.map(x => x.oi), borderColor: css('--grey'), borderDash: [4, 3], pointRadius: 0, borderWidth: 1, yAxisID: 'oi'}]},
+    right]},
     options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
-      plugins: {tooltip: {callbacks: {label: c => `${c.dataset.label}: ${fmtS(c.parsed.y)}`}}},
+      plugins: {tooltip: {callbacks: {label: c => c.dataset.yAxisID === 'oi' && showPx ? `${c.dataset.label}: ${fmtN(c.parsed.y, 2)}` : `${c.dataset.label}: ${fmtS(c.parsed.y)}`}}},
       scales: {x: {ticks: {maxTicksLimit: 8, callback(v) { return dLabel(this.getLabelForValue(v), {month: 'short', year: '2-digit'}); }}, grid: {display: false}},
-        y: {ticks: {callback: v => fmtK(v)}}, oi: {position: 'right', grid: {display: false}, ticks: {callback: v => fmtK(v)}, title: {display: true, text: 'open interest'}}}}});
+        y: {ticks: {callback: v => fmtK(v)}}, oi: {position: 'right', grid: {display: false}, ticks: {callback: v => showPx ? fmtN(v, v < 100 ? 1 : 0) : fmtK(v)}, title: {display: true, text: showPx ? `price, ${m.px.unit}` : 'open interest'}}}}});
 }
 
 
@@ -598,9 +604,10 @@ function renderVideo() {
 seg($('#cal-tier'), d => { calTier = +d.t; save('calTier', calTier); renderCalendar(); });
 $('#cal-more').onclick = () => { calMore = !calMore; renderCalendar(); };
 seg($('#cot-range'), d => { cotYears = +d.y; save('cotYears', cotYears); renderCOT(); });
+seg($('#cot-over'), d => { cotOver = d.o; save('cotOver', cotOver); renderCOT(); });
 seg($('#basis-com'), d => { basisCom = d.c; save('basisCom', basisCom); renderBasis(); });
 const syncSeg = (el, attr, v) => el.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset[attr] === String(v)));
-syncSeg($('#cal-tier'), 't', calTier); syncSeg($('#cot-range'), 'y', cotYears); syncSeg($('#basis-com'), 'c', basisCom);
+syncSeg($('#cal-tier'), 't', calTier); syncSeg($('#cot-range'), 'y', cotYears); syncSeg($('#cot-over'), 'o', cotOver); syncSeg($('#basis-com'), 'c', basisCom);
 
 async function boot() {
   // the hosted site serves its own copy; opened as a local file, read the published one
