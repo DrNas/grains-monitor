@@ -1,0 +1,51 @@
+{
+  "date": "2026-11-06",
+  "channel": "Grain Markets and Other Stuff",
+  "title": "China Buys US Wheat/Sorghum + Tech Stocks Crash on Data Center Fears (with guest Matt Bennett)",
+  "url": "https://www.youtube.com/watch?v=94Sj9Y68qcg",
+  "published": "2026-11-06",
+  "sections": [
+    {"topic": "Rates / Fed / macro", "bullets": [
+      "Treasuries rallied on the tech sell-off. Yields fell as much as 12 bp, the lowest since early September, and 10Y futures are up 5 straight weeks",
+      "The 10Y yield is 4.83%, down from a 5.3% peak earlier this year. Joe thinks the Treasury bear market that began in 2020 may be bottoming",
+      "Markets still mostly expect a 25 bp Fed hike in December, but some are now betting on no change. Lower crude has eased inflation worries",
+      "Farm operating loans run about 7% (7.5–8% at the high end). An Illinois program offers about 5–5.5%",
+      "Nasdaq fell 5.5–6.3% (the video gave both figures), about 15% below its all-time high. S&P fell 4.4% and the Dow 3.4%, the worst day since April 2025",
+      "The trigger was fear that Democratic midterm wins bring curbs on AI and data centers; about 40% of planned US data-center capacity is in states signaling a pause",
+      "This morning the Nasdaq is up 1.6% and the Dow down about 1%"
+    ]},
+    {"topic": "China / trade", "bullets": [
+      "Chinese buyers signed $600M of US sorghum and wheat purchase agreements in Shanghai (per Reuters)",
+      "China bought $7.2B of US farm goods other than soybeans from January to September, against a $17B annual commitment",
+      "China says it will buy more only if both sides implement the agreed tariff cuts",
+      "China has no US wheat on the books this year. Matt expects some corn buying eventually"
+    ]},
+    {"topic": "Export sales (week to Oct 29)", "bullets": [
+      "Soybeans 54 mbu (−44% w/w), China the top buyer. Corn 51 mbu (+10% vs the 4-week average), Mexico the top buyer. Wheat 20 mbu, Philippines the top buyer",
+      "Year-to-date sales vs last year: corn −34%, wheat −28%, soybeans +76% (China has about 16 MMT booked)",
+      "They think USDA’s soybean export forecast is too low, maybe by 50+ mbu"
+    ]},
+    {"topic": "Prices / crop size", "bullets": [
+      "Jan soybeans are down 9 straight sessions, −14¢ to about $11.88, a $1.50 drop from the $13.50 high in early September",
+      "The market seems to be pricing a StoneX-type yield of about 55 bu/acre, which adds about 160 mbu of supply; strong demand offsets it, and they estimate ending stocks of about 370 mbu, not 400+",
+      "Dec corn fell 4¢ to about $4.40 and is about $4.44 today. Minnesota corn yield: StoneX 207 vs USDA 195, and most growers think it’s a record",
+      "Wheat briefly broke its July low overnight. Matt expects winter wheat acres down at least 3M"
+    ]},
+    {"topic": "US weather / harvest", "bullets": [
+      "Drought worsened in northern Indiana, southern Illinois and Missouri, and improved in Minnesota and the Plains",
+      "Share of area in drought: corn 19%, soybeans 28%, winter wheat 48%",
+      "Weekend wind flattened some unharvested corn. Central Illinois is too dry and warm for fall nitrogen application",
+      "It should stay mostly dry for 1–2 more weeks"
+    ]},
+    {"topic": "Cattle", "bullets": [
+      "Live cattle fell $2.40–3.60 and feeders $2.93–6.98. Futures keep following the cash market lower"
+    ]}
+  ],
+  "flags": [
+    "The Nasdaq figure was garbled (“5 a.5%”); Joe’s chart showed −6.3%",
+    "The Texas governor-elect was captioned “Gina Hinosa”, likely Hinojosa",
+    "The crude price was captioned “9092” and is unclear",
+    "Central Illinois rain was captioned “1500s”, probably about 0.15 inch",
+    "“Fed hike” is what they said, not a caption error"
+  ]
+}
