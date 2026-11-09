@@ -8,7 +8,8 @@ import {getJSON, num, pctRank, round} from '../lib.mjs';
 const YAHOO = {corn: ['ZC=F', '¢/bu'], soybeans: ['ZS=F', '¢/bu'], meal: ['ZM=F', '$/short ton'], soyoil: ['ZL=F', '¢/lb'],
   srw: ['ZW=F', '¢/bu'], hrw: ['KE=F', '¢/bu'], lc: ['LE=F', '$/cwt'], fc: ['GF=F', '$/cwt'], lh: ['HE=F', '$/cwt']};
 async function yahooDaily(sym) {
-  const j = await getJSON(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=7y&interval=1d`,
+  const from = Math.floor(Date.UTC(2006, 0, 1) / 1000), to = Math.floor(Date.now() / 1000);   // daily closes back to the start of the COT history
+  const j = await getJSON(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?period1=${from}&period2=${to}&interval=1d`,
     {timeout: 60, headers: {'User-Agent': 'Mozilla/5.0'}});
   const r = j?.chart?.result?.[0]; if (!r?.timestamp) throw new Error(j?.chart?.error?.description || 'no data');
   const c = r.indicators.quote[0].close;
@@ -29,7 +30,7 @@ export const MARKETS = [
   {k: 'fc', name: 'Feeder cattle', code: '061641', grp: 'Livestock'},
   {k: 'lh', name: 'Lean hogs', code: '054642', grp: 'Livestock'},
 ];
-const YEARS = 6;   // history fetched; percentiles use the last 3 and 5 years of it
+const YEARS = 21;  // history fetched: the disaggregated report starts June 2006. Percentiles use only the last 3 and 5 years
 
 const FIELDS = ['cftc_contract_market_code', 'market_and_exchange_names', 'report_date_as_yyyy_mm_dd', 'open_interest_all',
   'm_money_positions_long_all', 'm_money_positions_short_all', 'm_money_positions_spread',
@@ -87,6 +88,8 @@ export async function load({now}) {
       m.px = {sym: y[0], unit: y[1], last: px.at(-1)?.[1] ?? null, lastDate: px.at(-1)?.[0] ?? null};
     } catch (e) { pxErrors.push(`${m.name} (${y[0]}): ${e.message.slice(0, 60)}`); }
   }
+  // the page charts only these; 20 years of every column would roughly double the snapshot
+  for (const m of markets) if (m.hist) m.hist = m.hist.map(({d, oi, mm, pm, px}) => ({d, oi, mm, pm, px: px ?? null}));
   const latest = markets.map(m => m.latest).filter(Boolean).sort().pop();
   return {data: {markets}, latest, n: rows.length, note: pxErrors.length ? `price overlay missing: ${pxErrors.join('; ')}` : '',
     src: 'CFTC Disaggregated COT, futures only (publicreporting.cftc.gov 72hh-3qpy); prices: Yahoo Finance continuous futures'};
