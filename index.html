@@ -213,6 +213,14 @@ const ord = n => n + (['th', 'st', 'nd', 'rd'][(n % 100 - 20) % 10] || ['th', 's
 const dLabel = (s, o = {month: 'short', day: 'numeric'}) => new Date(s + 'T12:00:00Z').toLocaleDateString('en-US', {timeZone: 'UTC', ...o});
 const charts = {};
 const mkChart = (id, cfg) => { charts[id]?.destroy(); charts[id] = new Chart(document.getElementById(id), cfg); return charts[id]; };
+// Date x axis: about n evenly spaced labels, and always the last data point, so the chart shows how recent it is.
+// fmt 'my' = month-year as "Nov '26" (a bare "Nov 26" reads like a day); otherwise a toLocaleDateString option object.
+const monthYear = d => `${dLabel(d, {month: 'short'})} '${d.slice(2, 4)}`;
+const xDates = (n = 7, fmt = 'my') => ({grid: {display: false}, ticks: {autoSkip: false, maxRotation: 0, callback(v, i) {
+  const L = this.chart.data.labels.length, step = Math.max(1, Math.ceil(L / n));
+  if (i !== L - 1 && (i % step !== 0 || L - 1 - i < step * 0.6)) return null;
+  const d = this.getLabelForValue(v); return fmt === 'my' ? monthYear(d) : dLabel(d, fmt);
+}}});
 // Crosshair: dotted vertical and horizontal lines at the pointer, with value tags on the x axis and on each y axis.
 // Usage: plugins: [crosshair], options.plugins.crosshair = {x: v => label, y: {axisId: v => label}}
 const crosshair = {
@@ -343,7 +351,7 @@ function renderCOT() {
     options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
       plugins: {tooltip: {callbacks: {title: it => dLabel(it[0].label, {month: 'short', day: 'numeric', year: 'numeric'}), label: c => c.dataset.yAxisID === 'oi' && showPx ? `${c.dataset.label}: ${fmtN(c.parsed.y, 2)}` : `${c.dataset.label}: ${fmtS(c.parsed.y)}`}},
         crosshair: {x: d => dLabel(d, {month: 'short', day: 'numeric', year: 'numeric'}), y: {y: v => fmtS(Math.round(v)), oi: v => showPx ? fmtN(v, v < 100 ? 2 : 1) : fmtK(v)}}},
-      scales: {x: {ticks: {maxTicksLimit: 8, callback(v) { return dLabel(this.getLabelForValue(v), {month: 'short', year: '2-digit'}); }}, grid: {display: false}},
+      scales: {x: xDates(8),
         y: {ticks: {callback: v => fmtK(v)}}, oi: {position: 'right', grid: {display: false}, ticks: {callback: v => showPx ? fmtN(v, v < 100 ? 1 : 0) : fmtK(v)}, title: {display: true, text: showPx ? `price, ${m.px.unit}` : 'open interest'}}}}});
 }
 
@@ -385,7 +393,7 @@ function renderLivestockPrices() {
   const yr = s => { const c = new Date(); c.setFullYear(c.getFullYear() - 1); const cs = c.toISOString().slice(0, 10); return s.filter(x => x.d >= cs); };
   const lineOpts = (yl, yr2) => ({maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, spanGaps: true,
     plugins: {tooltip: {callbacks: {title: it => dLabel(it[0].label, {month: 'short', day: 'numeric', year: 'numeric'}), label: c => ok(c.parsed.y) ? `${c.dataset.label}: $${c.parsed.y.toFixed(2)}` : null}}},
-    scales: {x: {ticks: {maxTicksLimit: 7, callback(v) { return dLabel(this.getLabelForValue(v), {month: 'short', year: '2-digit'}); }}, grid: {display: false}},
+    scales: {x: xDates(7),
       y: {title: {display: true, text: yl}}, ...(yr2 ? {y2: {position: 'right', grid: {display: false}, title: {display: true, text: yr2}}} : {})}});
   // cattle: daily Choice cutout, with each weekly 5-area live price placed on its report date
   const b1 = yr(beef), wmap = new Map(cw.map(x => [x.d, x.live]));
@@ -433,7 +441,7 @@ function renderMarginsPlanned() {
       <div class="cs" style="margin-top:2px">Hogs: head already lined up for delivery to packers (packer-owned and contracted), by day, from USDA's daily hog report. Cattle: fed cattle packers committed to buy and took delivery of, from USDA's daily committed-and-delivered report. Week- and year-ago figures are USDA's own comparisons.</div>
       <div class="cb sm"><canvas id="mp-hogs"></canvas></div><div class="cb sm"><canvas id="mp-cattle"></canvas></div></div>`;
   const yr = s => { const c = new Date(); c.setFullYear(c.getFullYear() - 1); const cs = c.toISOString().slice(0, 10); return s.filter(x => x.d >= cs); };
-  const xTicks = fmt => ({ticks: {maxTicksLimit: 7, callback(v) { return dLabel(this.getLabelForValue(v), fmt); }}, grid: {display: false}});
+  const xTicks = fmt => xDates(7, fmt.year ? 'my' : fmt);
   if (M) {
     const pk = yr(M.porkSpread), bm = new Map(M.beefSpread.map(x => [x.d, x.spread]));
     mkChart('mp-margin', {type: 'line', data: {labels: pk.map(x => x.d), datasets: [
@@ -477,7 +485,7 @@ function renderMeat() {
       {type: 'line', label: 'Same week last year', data: w.map(x => x.yr), borderColor: css('--text'), borderWidth: 1.5, pointRadius: 0, tension: .2}]},
       options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
         plugins: {tooltip: {callbacks: {label: c => `${c.dataset.label}: ${fmtN(c.parsed.y)}`, footer: it => { const i = it[0].dataIndex; return `vs last year: ${pc(pctCh(w[i].head, w[i].yr))}`; }}}},
-        scales: {x: {ticks: {maxTicksLimit: 8, callback(v) { return dLabel(this.getLabelForValue(v), {month: 'short', year: '2-digit'}); }}, grid: {display: false}},
+        scales: {x: xDates(8),
           y: {beginAtZero: false, ticks: {callback: v => fmtK(v)}}}}});
     const yy = w.filter(x => ok(x.yr)), ytd = yy.slice(-13);
     $(`#sl-${sp}-f`).textContent = ytd.length ? `Last 13 full weeks vs a year earlier: ${pc(pctCh(ytd.reduce((s, x) => s + x.head, 0), ytd.reduce((s, x) => s + x.yr, 0)))}. Weeks run Sunday–Saturday.` : '';
@@ -536,7 +544,7 @@ function renderWeather() {
       {label: 'Normal', data: nrm, borderColor: css('--grey'), pointRadius: 0, borderWidth: 1.5}]},
       options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
         plugins: {legend: {display: false}, tooltip: {callbacks: {title: it => dLabel(it[0].label, {weekday: 'short', month: 'short', day: 'numeric'}), label: c => ok(c.parsed.y) ? `${c.dataset.label}: ${c.parsed.y.toFixed(2)}"` : null}}},
-        scales: {x: {ticks: {maxTicksLimit: 6, callback(v) { return dLabel(this.getLabelForValue(v)); }}, grid: {display: false}}, y: {beginAtZero: true, title: {display: true, text: 'cumulative in.'}}}}});
+        scales: {x: xDates(6, {month: 'short', day: 'numeric'}), y: {beginAtZero: true, title: {display: true, text: 'cumulative in.'}}}}});
   }
   const cpc = 'https://www.cpc.ncep.noaa.gov/products/predictions/';
   $('#cpc').innerHTML = [['610day/610prcp.new.gif', '6–10 day precipitation'], ['610day/610temp.new.gif', '6–10 day temperature'],
