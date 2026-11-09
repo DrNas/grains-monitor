@@ -1,0 +1,53 @@
+{
+  "date": "2026-11-09",
+  "channel": "Grain Markets and Other Stuff",
+  "title": "USDA to Use AI in Crop Reports + US/China Truce Extended",
+  "url": "https://www.youtube.com/watch?v=A0eQEX07_-A",
+  "published": "2026-11-09",
+  "sections": [
+    {"topic": "Overnight (5:24am CT)", "bullets": [
+      "Dec corn +1¼ @ 442¾; Jan beans +¼ @ 1194 (were +7-8 overnight)",
+      "Dec CBOT wheat −3½ @ 587¾; Dec KC −4¾ @ 627¾; Dec spring −1¼ @ 614¾"
+    ]},
+    {"topic": "USDA / reports", "bullets": [
+      "USDA adds an AI check to tomorrow’s Nov Crop Production/WASDE. It only checks for errors and doesn’t forecast. Follows the Sept report errors (corn yield revised a few tenths)",
+      "WASDE is Tue 11am CT. Average trade guess: corn yield 180.3 (about −1 bu vs Oct), still the 2nd-largest crop; beans 53.5 (StoneX 55), a record crop",
+      "Joe thinks the market is trading bigger numbers than that: corn ~181.2+, beans above 53.5",
+      "Ending stocks: corn slightly lower, beans and wheat modestly higher; world stocks up for all three",
+      "Joe thinks USDA’s corn export number is too high and its bean export number too low; it may not adjust them yet",
+      "$8B harvest fuel relief: the Oct 16 acreage cutoff passed before the program was announced, not a problem for most farms",
+      "At risk for the relief: late land acquisitions, new entities, unresolved FSA-578 errors. Rates, sign-up and limits not announced yet; crop insurance not required"
+    ]},
+    {"topic": "China / trade", "bullets": [
+      "China holds off the extra 24% tariff 2 more months (from Tue). The 10% blanket tariff stays; port fees on US ships delayed to Jan 10",
+      "USTR Greer pushed China for concrete ag and rare-earth action. Trump–Xi meet at APEC (Shenzhen) later this month",
+      "Flash sales Fri: 4M bu corn to unknown; 5M bu beans to China",
+      "China is officially at ~16.3 MMT (~65%) of the 25 MMT bean pledge; Joe’s real-time estimate is 18–19 MMT",
+      "Small wheat and sorghum buys were reported last week. Corn export sales are still well behind pace"
+    ]},
+    {"topic": "Funds (COT futures-only, week to Nov 3)", "bullets": [
+      "Corn: sold 72k → net long 9k, smallest since early July (futures + options: net short 23k)",
+      "Beans: sold 51k → still net long 143k (54% of record) after a ~$1.50 drop from the highs. Joe gives two readings: more liquidation to come, or funds see something (demand, or El Niño in Brazil)",
+      "SRW: sold 13k",
+      "Corn + beans + SRW combined: record 677k long (week of Sep 7), sold 612k since, ~64k net long now"
+    ]},
+    {"topic": "Price action", "bullets": [
+      "Fri: Jan beans +~6¢ near 1194 (short covering); Dec corn +~2¢ near 442; wheat at its lowest since Feb on Black Sea supply",
+      "Corn is only ~5¢ off its low; near-term upside target is the Aug low, 457",
+      "Beans held the Aug low by a couple cents; a 25¢ rally is plausible on a friendly USDA report or fund buying",
+      "Dec SRW broke the 590½ summer low and traded in the 580s. Joe says it looks terrible and the market is betting on big winter wheat acreage"
+    ]},
+    {"topic": "Cattle / outside markets / rates", "bullets": [
+      "Fri: live cattle −0.35 to −3.00; feeders −1.55 to −2.73",
+      "S&P +48 (~0.6%), Dow +500 (~1%), Nasdaq came back to higher",
+      "Treasuries about flat; USD lower; Dec WTI −$2.74",
+      "No Fed or rates comments beyond that"
+    ]}
+  ],
+  "flags": [
+    "The WTI price came through as “$8809”; the real level is unclear",
+    "“September meeting” on the China truce probably means the earlier Trump–Xi deal; the date is uncertain",
+    "“Trend line since about 12:22” on beans is probably a price (12.22), not a time",
+    "Paul Neiffer and Scott Hutchins were captioned as “Nefer/Nepher” and “Hutchkins”"
+  ]
+}
