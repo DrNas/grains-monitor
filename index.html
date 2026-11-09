@@ -213,6 +213,41 @@ const ord = n => n + (['th', 'st', 'nd', 'rd'][(n % 100 - 20) % 10] || ['th', 's
 const dLabel = (s, o = {month: 'short', day: 'numeric'}) => new Date(s + 'T12:00:00Z').toLocaleDateString('en-US', {timeZone: 'UTC', ...o});
 const charts = {};
 const mkChart = (id, cfg) => { charts[id]?.destroy(); charts[id] = new Chart(document.getElementById(id), cfg); return charts[id]; };
+// Crosshair: dotted vertical and horizontal lines at the pointer, with value tags on the x axis and on each y axis.
+// Usage: plugins: [crosshair], options.plugins.crosshair = {x: v => label, y: {axisId: v => label}}
+const crosshair = {
+  id: 'crosshair',
+  afterEvent(chart, args) {
+    const e = args.event, a = chart.chartArea;
+    const inside = e.x >= a.left && e.x <= a.right && e.y >= a.top && e.y <= a.bottom;
+    chart.$cross = e.type === 'mouseout' || !inside ? null : {x: e.x, y: e.y};
+    args.changed = true;
+  },
+  afterDraw(chart, args, opts) {
+    const p = chart.$cross; if (!p) return;
+    const {ctx, chartArea: a, scales} = chart, line = css('--muted'), bg = '#30363d', fg = css('--text');
+    ctx.save();
+    ctx.setLineDash([3, 3]); ctx.lineWidth = 1; ctx.strokeStyle = line;
+    ctx.beginPath(); ctx.moveTo(p.x, a.top); ctx.lineTo(p.x, a.bottom); ctx.moveTo(a.left, p.y); ctx.lineTo(a.right, p.y); ctx.stroke();
+    ctx.setLineDash([]); ctx.font = '11px -apple-system,Segoe UI,Helvetica,Arial,sans-serif'; ctx.textBaseline = 'middle';
+    const tag = (text, x, y, align) => {
+      const w = ctx.measureText(text).width + 10, h = 17;
+      const left = align === 'right' ? x - w : align === 'center' ? Math.min(Math.max(x - w / 2, a.left), a.right - w) : x;
+      ctx.fillStyle = bg; ctx.fillRect(left, y - h / 2, w, h);
+      ctx.fillStyle = fg; ctx.textAlign = 'left'; ctx.fillText(text, left + 5, y);
+    };
+    if (opts.x && scales.x) {
+      const i = Math.round(scales.x.getValueForPixel(p.x)), lab = chart.data.labels[Math.max(0, Math.min(chart.data.labels.length - 1, i))];
+      if (lab != null) tag(opts.x(lab), p.x, a.bottom + 10, 'center');
+    }
+    for (const [id, fmt] of Object.entries(opts.y || {})) {
+      const sc = scales[id]; if (!sc || sc.options.display === false) continue;
+      const v = sc.getValueForPixel(p.y);
+      tag(fmt(v), sc.position === 'right' ? sc.left + 2 : sc.right - 2, p.y, sc.position === 'right' ? 'left' : 'right');
+    }
+    ctx.restore();
+  },
+};
 Chart.defaults.color = css('--muted'); Chart.defaults.borderColor = css('--grid'); Chart.defaults.font.size = 11;
 Chart.defaults.plugins.legend.labels.boxWidth = 12; Chart.defaults.animation = false;
 const seg = (el, cb) => el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); cb(b.dataset); });
@@ -301,12 +336,13 @@ function renderCOT() {
   const right = showPx
     ? {label: `Price (${m.px.unit})`, data: h.map(x => x.px ?? null), borderColor: css('--text'), pointRadius: 0, borderWidth: 1.3, yAxisID: 'oi', spanGaps: true}
     : {label: 'Open interest', data: h.map(x => x.oi), borderColor: css('--grey'), borderDash: [4, 3], pointRadius: 0, borderWidth: 1, yAxisID: 'oi'};
-  mkChart('cot-chart', {type: 'line', data: {labels: h.map(x => x.d), datasets: [
+  mkChart('cot-chart', {type: 'line', plugins: [crosshair], data: {labels: h.map(x => x.d), datasets: [
     {label: 'Managed money net', data: h.map(x => x.mm), borderColor: css('--orange'), backgroundColor: css('--orange') + '22', fill: 'origin', pointRadius: 0, borderWidth: 2, tension: .15},
     {label: 'Commercial (producer/merchant) net', data: h.map(x => x.pm), borderColor: css('--blue'), pointRadius: 0, borderWidth: 1.5, tension: .15},
     right]},
     options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
-      plugins: {tooltip: {callbacks: {label: c => c.dataset.yAxisID === 'oi' && showPx ? `${c.dataset.label}: ${fmtN(c.parsed.y, 2)}` : `${c.dataset.label}: ${fmtS(c.parsed.y)}`}}},
+      plugins: {tooltip: {callbacks: {title: it => dLabel(it[0].label, {month: 'short', day: 'numeric', year: 'numeric'}), label: c => c.dataset.yAxisID === 'oi' && showPx ? `${c.dataset.label}: ${fmtN(c.parsed.y, 2)}` : `${c.dataset.label}: ${fmtS(c.parsed.y)}`}},
+        crosshair: {x: d => dLabel(d, {month: 'short', day: 'numeric', year: 'numeric'}), y: {y: v => fmtS(Math.round(v)), oi: v => showPx ? fmtN(v, v < 100 ? 2 : 1) : fmtK(v)}}},
       scales: {x: {ticks: {maxTicksLimit: 8, callback(v) { return dLabel(this.getLabelForValue(v), {month: 'short', year: '2-digit'}); }}, grid: {display: false}},
         y: {ticks: {callback: v => fmtK(v)}}, oi: {position: 'right', grid: {display: false}, ticks: {callback: v => showPx ? fmtN(v, v < 100 ? 1 : 0) : fmtK(v)}, title: {display: true, text: showPx ? `price, ${m.px.unit}` : 'open interest'}}}}});
 }
