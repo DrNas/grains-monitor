@@ -4,13 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Grains Desk</title>
-<meta name="description" content="Crop progress and condition against last year and the 5-year average, with a condition-based yield model, for corn, soybeans and wheat. Built from USDA NASS data.">
+<meta name="description" content="Grains desk: WASDE balance sheets and revisions, crop progress and condition with a yield model, export sales and inspections against USDA's forecast, for corn, soybeans, soybean meal and oil, and wheat. Built from USDA data.">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link rel="stylesheet" href="../assets/site.css">
 </head>
 <body>
 <header></header>
 <main>
+  <div class="hbar"><span class="ctl seg" id="com"></span><span class="muted" id="com-note"></span></div>
+
+  <section id="sd">
+    <h2>Supply &amp; demand <span class="ctl muted" id="sd-asof"></span></h2>
+    <p class="sub">USDA's monthly WASDE. Change = this month's report against last month's: read the revisions, not the levels.</p>
+    <div class="grid g2">
+      <div id="bal-card"></div>
+      <div id="rev-card"></div>
+    </div>
+    <div id="world-card" style="margin-top:10px"></div>
+  </section>
+
   <section id="progress">
     <h2>Crop progress &amp; condition <span class="ctl seg" id="crop"></span></h2>
     <p class="sub">USDA's weekly Crop Progress (Mondays, 4pm ET): national condition ratings and planting-to-harvest progress, this season against last season and the average of the previous five. The yield model reads the condition index at the point in the season where it has best predicted the final yield.</p>
@@ -24,13 +36,31 @@
       <div id="stages-card"></div>
     </div>
   </section>
+
+  <section id="exports">
+    <h2>Exports</h2>
+    <p class="sub">USDA's weekly export sales (Thursdays, 8:30am ET) and export inspections (Mondays, 11am ET), each against USDA's WASDE export forecast and the usual seasonal pace of the previous five marketing years.</p>
+    <div class="grid g2">
+      <div id="sales-card"></div>
+      <div id="insp-card"></div>
+    </div>
+    <div class="grid g2" style="margin-top:10px">
+      <div id="net-card"></div>
+      <div id="buyers-card"></div>
+    </div>
+  </section>
+
+  <section id="su">
+    <h2>Stocks-to-use vs farm price</h2>
+    <div class="grid g2"><div id="su-card"></div><div id="hist-card"></div></div>
+  </section>
 </main>
 <script src="../assets/desk.js"></script>
 <script>
 'use strict';
 const D = Desk, {fmtN, fmtS, cls, esc} = D;
 D.header('Grains');
-D.footer('USDA NASS Quick Stats (Crop Progress, Crop Production)');
+D.footer('USDA World Agricultural Supply and Demand Estimates; USDA NASS Quick Stats (Crop Progress, Crop Production); USDA FAS Export Sales Reporting; USDA AMS FGIS export inspections');
 
 const CROPS = [['corn', 'Corn'], ['soybeans', 'Soybeans'], ['wheat', 'Winter wheat'], ['spring_wheat', 'Spring wheat']];
 let CP = null, crop = D.restore('grains_crop', 'corn'), stage = null;
@@ -123,15 +153,129 @@ function render() {
     ], rows, {rowAttr: r => `class="click${r.stage === stage ? ' sel' : ''}" data-stage="${esc(r.stage)}"`})});
 }
 
+const setCropButtons = () => document.querySelectorAll('#crop button').forEach(b => b.classList.toggle('on', b.dataset.k === crop));
 document.getElementById('crop').innerHTML = CROPS.map(([k, n]) => `<button data-k="${k}"${k === crop ? ' class="on"' : ''}>${n}</button>`).join('');
 D.seg(document.getElementById('crop'), ({k}) => { crop = k; stage = null; D.save('grains_crop', k); render(); });
 document.addEventListener('click', e => { const tr = e.target.closest('tr[data-stage]'); if (tr) { stage = tr.dataset.stage; render(); } });
 
+// ================= WASDE and exports =================
+const COMS = [['corn', 'Corn'], ['soybeans', 'Soybeans'], ['meal', 'Soybean meal'], ['oil', 'Soybean oil'], ['wheat', 'Wheat']];
+const CROP_OF = {corn: 'corn', soybeans: 'soybeans', meal: 'soybeans', oil: 'soybeans', wheat: 'wheat'};
+let WA = null, EX = null, com = D.restore('grains_com', 'corn'), revItem = 'end_stocks';
+const sgn = (v, d = 0) => D.ok(v) ? `<span class="${cls(v)}">${fmtS(v, d)}</span>` : '';
+const BAL_ROWS = [['area_planted', 'Area planted (mil ac)', 1], ['area_harvested', 'Area harvested (mil ac)', 1], ['yield', 'Yield', 1], ['beg_stocks', 'Beginning stocks', 0],
+  ['production', 'Production', 0], ['imports', 'Imports', 0], ['supply', 'Total supply', 0], ['feed_residual', 'Feed & residual', 0], ['fsi', 'Food, seed & industrial', 0],
+  ['ethanol', 'Ethanol', 0], ['crush', 'Crush', 0], ['biofuel', 'Biofuel', 0], ['food_other', 'Food, feed & other industrial', 0], ['domestic', 'Domestic total', 0],
+  ['exports', 'Exports', 0], ['use', 'Total use', 0], ['end_stocks', 'Ending stocks', 0], ['price', 'Avg farm price', 2]];
+const label = k => (BAL_ROWS.find(r => r[0] === k) || [k, k.replace('_', ' ')])[1];
+
+function renderSD() {
+  const W = WA?.data?.commodities?.[com];
+  if (!W) { document.getElementById('bal-card').innerHTML = D.card({title: 'U.S. balance', body: '<p class="note">WASDE data has not been built yet.</p>'}); return; }
+  document.getElementById('sd-asof').textContent = `WASDE ${WA.data.report}`;
+  const mys = Object.keys(W.us).sort().slice(-2), cur = mys.at(-1), u = W.us;
+  const cell = (my, k, d) => { const x = u[my]?.items[k]; return x ? `<td class="n">${fmtN(x.value, d)}</td><td class="n">${sgn(x.change, d)}</td>` : '<td class="n">—</td><td></td>'; };
+  const su = my => { const i = u[my].items; return i.end_stocks && i.use ? fmtN(100 * i.end_stocks.value / i.use.value, 1) + '%' : '—'; };
+  const rows = BAL_ROWS.filter(r => mys.some(m => u[m]?.items[r[0]]));
+  document.getElementById('bal-card').innerHTML = D.card({title: `${W.label}: U.S. balance (${W.unit})`, entry: WA, exp: '',
+    body: `<div class="tw"><table><tr><th></th>${mys.map(m => `<th class="n">${m}</th><th class="n">chg</th>`).join('')}</tr>
+      ${rows.map(([k, l, d]) => `<tr class="click${k === revItem ? ' sel' : ''}" data-rev="${k}"><td>${l}</td>${mys.map(m => cell(m, k, d)).join('')}</tr>`).join('')}
+      <tr><td>Stocks/use</td>${mys.map(m => `<td class="n">${su(m)}</td><td></td>`).join('')}</tr></table></div>
+      <p class="note">${mys.map(m => `${m}: ${esc(u[m].report)} report`).join(' · ')}. Click a line to chart its revisions.</p>`});
+  if (!u[cur].items[revItem]) revItem = 'end_stocks';
+  const x = u[cur].items[revItem], rs = W.revisions?.[revItem];
+  document.getElementById('rev-card').innerHTML = D.card({title: `Revision path: ${esc(label(revItem))}, ${cur}`, entry: WA, exp: 'c-rev',
+    body: `<div class="cb"><canvas id="c-rev"></canvas></div><p class="note">${rs ? `From first to final estimate USDA has moved ${esc(label(revItem).toLowerCase())} by ${fmtN(rs.mean_abs_pct, 1)}% on average (absolute) over ${rs.my.length} completed years; latest: ${rs.my.slice(-5).map((m, i, a) => `${m} ${fmtS(rs.pct[rs.pct.length - a.length + i], 1)}%`).join(', ')}.` : ''}</p>`});
+  if (x) D.chart('c-rev', {type: 'line', data: {labels: x.history.map(h => h[0]), datasets: [{label: `${label(revItem)} ${cur}`, data: x.history.map(h => h[1]), borderColor: D.css('--orange'), stepped: true, pointRadius: 3, borderWidth: 2}]},
+    options: {plugins: {legend: {display: false}, crosshair: {x: i => x.history[Math.round(i)]?.[0] ?? '', y: {y: v => fmtN(v, revItem === 'yield' || revItem === 'price' ? 2 : 0)}}}}});
+  // world
+  const wl = W.world || {}, cs = Object.keys(wl), attrs = [['production', 'Production'], ['exports', 'Exports'], ['imports', 'Imports'], ['end_stocks', 'Ending stocks']];
+  document.getElementById('world-card').innerHTML = cs.length ? D.card({title: `${W.label}: world and key countries (million metric tons)`, entry: WA,
+    sub: 'Latest marketing year in USDA\'s world tables (local marketing years). Change vs last month\'s WASDE.',
+    body: `<div class="tw"><table><tr><th>Country</th><th>Year</th>${attrs.map(a => `<th class="n">${a[1]}</th><th class="n">chg</th>`).join('')}</tr>${cs.map(cn => {
+      const b = wl[cn], my = Object.keys(b).sort().at(-1), it = b[my].items;
+      return `<tr><td>${esc(cn === 'World Less China' ? 'World ex-China' : cn)}</td><td class="muted">${my}</td>${attrs.map(([k]) => it[k] ? `<td class="n">${fmtN(it[k].value, 2)}</td><td class="n">${sgn(it[k].change, 2)}</td>` : '<td class="n">—</td><td></td>').join('')}</tr>`; }).join('')}</table></div>`}) : '';
+  // stocks/use vs price
+  const s = W.stocks_use_vs_price, ci = u[cur].items, cx = ci.end_stocks && ci.use ? 100 * ci.end_stocks.value / ci.use.value : null;
+  document.getElementById('su-card').innerHTML = s ? D.card({title: `${W.label}: ending stocks/use vs season-average farm price`, entry: WA, exp: 'c-su',
+    body: `<div class="cb"><canvas id="c-su"></canvas></div><p class="note">Log-log fit over final WASDE estimates: elasticity ${s.fit.elasticity}, R² ${s.fit.r2}. ${s.fit.r2 < 0.3 ? 'Weak: U.S. stocks alone do not set this price (world balances, crush margins or policy dominate).' : 'U.S. stocks-to-use explains much of the price difference between years.'}</p>`})
+    : D.card({title: 'Stocks-to-use vs price', body: '<p class="note">Not enough history for this commodity.</p>'});
+  if (s) D.chart('c-su', {type: 'scatter', data: {datasets: [
+    {label: 'completed marketing years', data: s.stocks_use_pct.map((x, i) => ({x, y: s.price[i], m: s.my[i]})), backgroundColor: D.css('--blue'), pointRadius: 4},
+    ...(cx ? [{label: `${cur} projection`, data: [{x: cx, y: ci.price?.value, m: cur}], backgroundColor: D.css('--orange'), pointRadius: 7}] : [])]},
+    options: {interaction: {mode: 'nearest', intersect: true}, plugins: {tooltip: {callbacks: {label: q => `${q.raw.m}: ${fmtN(q.raw.x, 1)}%, ${fmtN(q.raw.y, 2)}`}}, crosshair: {}},
+      scales: {x: {title: {display: true, text: 'ending stocks / total use, %'}}, y: {title: {display: true, text: `farm price (${esc(ci.price?.unit || '')})`}}}}});
+  const rv = W.revisions?.exports || W.revisions?.end_stocks;
+  document.getElementById('hist-card').innerHTML = rv ? D.card({title: `First vs final WASDE estimate: ${rv === W.revisions?.exports ? 'exports' : 'ending stocks'}`, entry: WA, exp: 'c-hist',
+    sub: 'USDA\'s first estimate for each marketing year against its final one: how much the number usually moves.', body: '<div class="cb"><canvas id="c-hist"></canvas></div>'}) : '';
+  if (rv) D.chart('c-hist', {type: 'bar', data: {labels: rv.my, datasets: [{label: 'first estimate', data: rv.first, backgroundColor: D.css('--grey')}, {label: 'final', data: rv.final, backgroundColor: D.css('--blue')}]},
+    options: {plugins: {crosshair: {x: i => rv.my[Math.round(i)] ?? '', y: {y: v => fmtN(v, 0)}}}, scales: {x: {ticks: {maxRotation: 0, autoSkip: true, maxTicksLimit: 8}}}}});
+}
+
+function renderExports() {
+  const E = EX?.data?.commodities?.[com] || {}, sl = E.sales, ins = E.inspections, wk = n => `wk ${n}`;
+  // sales commitments
+  if (sl) {
+    const t = sl.test;
+    document.getElementById('sales-card').innerHTML = D.card({title: `Export sales commitments, ${sl.my} (${sl.unit})`, entry: EX, asof: sl.as_of, exp: 'c-sales',
+      body: `<div class="cb"><canvas id="c-sales"></canvas></div>
+        <p class="yt">Week ${sl.week} (to ${D.dLabel(sl.as_of, {month: 'short', day: 'numeric'})}): commitments ${fmtN(sl.commit, 0)} (shipped ${fmtN(sl.shipped, 0)} + unshipped ${fmtN(sl.outstanding, 0)}) = <b>${fmtN(sl.pct_of_usda, 1)}%</b> of USDA's ${fmtN(sl.usda, 0)} (${esc(EX.data.wasde)} WASDE) vs ${fmtN(sl.avg_pct, 1)}% usually by now${sl.commit_prev != null ? `; a year ago ${fmtN(sl.commit_prev, 0)}` : ''}. Commitment pace implies <b>${fmtN(sl.implied, 0)}</b> (${sgn(sl.implied - sl.usda, 0)} vs USDA).</p>
+        ${t ? `<p class="note">Backtest (${t.revision_n} marketing years): being ahead of or behind USDA has called the direction of USDA's next export revision ${fmtN(100 * t.revision_hit, 0)}% of the time (${fmtN(100 * t.revision_hit_gap3, 0)}% when the gap is over 3%). As a level forecast at this stage it misses by ${fmtN(t.near.mae_pct, 1)}% against ${fmtN(t.near.mae_usda_pct, 1)}% for USDA, so use it for the direction of the next revision, not the number.</p>` : ''}`});
+    D.chart('c-sales', {type: 'line', data: {labels: sl.weeks, datasets: [
+      {label: `${sl.my} commitments`, data: sl.cur, borderColor: D.css('--orange'), borderWidth: 2.5, pointRadius: 0},
+      {label: 'prior year', data: sl.prev, borderColor: D.css('--blue'), borderWidth: 1.3, pointRadius: 0},
+      {label: 'usual path to USDA', data: sl.avg_path, borderColor: D.css('--text'), borderDash: [4, 3], borderWidth: 1.2, pointRadius: 0}]},
+      options: {scales: {x: {title: {display: true, text: 'week of marketing year'}, ticks: {maxTicksLimit: 14}}}, plugins: {crosshair: {x: i => wk(Math.round(i) + 1), y: {y: v => fmtN(v, 0)}}}}});
+    // weekly net sales
+    document.getElementById('net-card').innerHTML = D.card({title: `Weekly net sales, ${sl.my} (${sl.unit})`, entry: EX, asof: sl.as_of, exp: 'c-net',
+      body: `<div class="cb"><canvas id="c-net"></canvas></div><p class="note">Last week ${fmtN(sl.net_last, 1)}, 4-week average ${fmtN(sl.net_4wk, 1)}, against ${fmtN(sl.need_weekly, 1)} a week needed to reach USDA (rough: ignores sales carried into next year).${sl.next_my_outstanding ? ` Sales already booked for next marketing year: ${fmtN(sl.next_my_outstanding, 0)}.` : ''}</p>`});
+    D.chart('c-net', {type: 'bar', data: {labels: sl.net_weeks, datasets: [
+      {type: 'bar', label: 'net sales', data: sl.net_series, backgroundColor: sl.net_series.map(v => v < 0 ? D.css('--red') : D.css('--blue'))},
+      {type: 'line', label: 'needed per week for USDA', data: sl.net_weeks.map(() => sl.need_weekly), borderColor: D.css('--text'), borderDash: [4, 3], pointRadius: 0, borderWidth: 1.2}]},
+      options: {scales: {x: {ticks: {maxRotation: 0, autoSkip: true, maxTicksLimit: 7, callback(v) { return D.dLabel(this.getLabelForValue(v), {month: 'short', day: 'numeric'}); }}}},
+        plugins: {crosshair: {x: i => D.dLabel(sl.net_weeks[Math.round(i)], {month: 'short', day: 'numeric', year: 'numeric'}), y: {y: v => fmtN(v, 1)}}}}});
+    // buyers and wheat classes
+    const dd = sl.destinations;
+    document.getElementById('buyers-card').innerHTML = D.card({title: 'Top buyers: commitments vs the same week a year ago', entry: EX, asof: dd?.as_of,
+      body: (dd ? D.table([{h: 'Destination', f: r => esc(r.name)}, {h: sl.my, n: 1, f: r => fmtN(r.cur, 0)}, {h: 'Year ago', n: 1, f: r => fmtN(r.prev, 0)},
+        {h: 'Change', n: 1, f: r => sgn(r.cur - r.prev, 0)}, {h: 'Last week net', n: 1, f: r => fmtN(r.net_last, 1)}, {h: 'Share', n: 1, f: r => fmtN(r.share, 0) + '%'}],
+        [...dd.rows, {name: 'Total', cur: dd.total_cur, prev: dd.total_prev, net_last: null, share: 100}]) : '<p class="note">No destination data.</p>')
+        + (sl.classes ? `<p class="yt">Wheat by class (mil bu)</p>` + D.table([{h: 'Class', f: r => r.cls}, {h: 'Commitments', n: 1, f: r => fmtN(r.commit, 0)}, {h: 'Year ago', n: 1, f: r => fmtN(r.prev, 0)},
+          {h: 'y/y', n: 1, f: r => D.ok(r.yoy_pct) ? sgn(r.yoy_pct, 0) + '%' : '—'}, {h: '4-wk net sales', n: 1, f: r => fmtN(r.net_4wk, 1)}], sl.classes)
+          + '<p class="note">The WASDE balance is all wheat; class commitments show where demand sits (HRW delivers against KC, SRW against Chicago).</p>' : '')});
+  } else {
+    for (const id of ['sales-card', 'net-card', 'buyers-card']) document.getElementById(id).innerHTML = '';
+    document.getElementById('sales-card').innerHTML = D.card({title: 'Export sales', body: '<p class="note">No export sales data in this build.</p>', entry: EX});
+  }
+  // inspections
+  document.getElementById('insp-card').innerHTML = ins ? D.card({title: `Export inspections pace, ${ins.my} (${ins.unit})`, entry: EX, asof: ins.as_of, exp: 'c-insp',
+    body: `<div class="cb"><canvas id="c-insp"></canvas></div>
+      <p class="yt">Week ${ins.week}: ${fmtN(ins.cum, 0)} inspected, ${fmtN(ins.pct_of_usda, 1)}% of USDA's ${fmtN(ins.usda, 0)} (${esc(EX.data.wasde)} WASDE) against ${fmtN(ins.avg_pct, 1)}% on average by this week. Pace-implied exports <b>${fmtN(ins.implied, 0)}</b> (${sgn(ins.implied - ins.usda, 0)} vs USDA).</p>
+      ${ins.test ? `<p class="note">Backtest: at this point of the season the pace-implied figure has missed final exports by ${fmtN(ins.test.mae_pct, 1)}% on average, against ${fmtN(ins.test.mae_usda_pct, 1)}% for USDA's forecast in force at the time; it called the direction of USDA's next export revision ${fmtN(100 * ins.test.revision_hit, 0)}% of the time (${ins.test.n} seasons). Inspections miss some shipments (rail to Mexico and Canada), which the pace adjusts for.</p>` : ''}`})
+    : D.card({title: 'Export inspections', body: `<p class="note">${com === 'meal' || com === 'oil' ? 'FGIS inspections cover grains and soybeans, not meal or oil; export sales are the shipment record for products.' : 'No inspections data in this build.'}</p>`});
+  if (ins) D.chart('c-insp', {type: 'line', data: {labels: ins.weeks, datasets: [
+    {label: `${ins.my} cumulative`, data: ins.cur, borderColor: D.css('--orange'), borderWidth: 2.5, pointRadius: 0},
+    {label: 'prior year', data: ins.prev, borderColor: D.css('--blue'), borderWidth: 1.3, pointRadius: 0},
+    {label: 'pace needed for USDA', data: ins.needed, borderColor: D.css('--text'), borderDash: [4, 3], borderWidth: 1.2, pointRadius: 0}]},
+    options: {scales: {x: {title: {display: true, text: 'week of marketing year'}, ticks: {maxTicksLimit: 14}}}, plugins: {crosshair: {x: i => wk(Math.round(i) + 1), y: {y: v => fmtN(v, 0)}}}}});
+}
+
+function setCom(k) {
+  com = k; D.save('grains_com', k);
+  document.querySelectorAll('#com button').forEach(b => b.classList.toggle('on', b.dataset.k === k));
+  document.getElementById('com-note').textContent = k === 'meal' || k === 'oil' ? 'Crop progress below is the soybean crop.' : '';
+  if (crop !== CROP_OF[k] && !(k === 'wheat' && crop === 'spring_wheat')) { crop = CROP_OF[k]; stage = null; setCropButtons(); }
+  renderSD(); if (CP?.data) render(); renderExports();
+}
+document.getElementById('com').innerHTML = COMS.map(([k, n]) => `<button data-k="${k}">${n}</button>`).join('');
+D.seg(document.getElementById('com'), ({k}) => setCom(k));
+document.addEventListener('click', e => { const tr = e.target.closest('tr[data-rev]'); if (tr) { revItem = tr.dataset.rev; renderSD(); } });
+
 (async () => {
-  CP = await D.load('crop_progress');
-  D.stamp([CP]);
-  if (!CP?.data) { document.getElementById('tiles').innerHTML = '<p class="note">Crop progress data has not been built yet.</p>'; return; }
-  render();
+  [CP, WA, EX] = await Promise.all(['crop_progress', 'wasde', 'export_sales'].map(D.load));
+  D.stamp([CP, WA, EX]);
+  if (!CP?.data) document.getElementById('tiles').innerHTML = '<p class="note">Crop progress data has not been built yet.</p>';
+  setCom(com);
 })();
 </script>
 </body>

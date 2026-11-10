@@ -14,19 +14,26 @@ const PAGES = (process.env.PAGES_URL ? [process.env.PAGES_URL] : ['https://grain
 
 // [id, label, options]. Default: scripts/sources/<id>.mjs, data inside latest.json (the home page).
 // {py: 'pipelines/<x>/run.py'}: a Python pipeline that prints {data, latest, n, src, note, partial} as JSON on stdout.
+//   It may also return `cache`: kept in data/<id>.cache.json (never read by a page) and handed back to the next run
+//   as the file named by the PREV_CACHE environment variable, so history that never changes is downloaded once.
 // {file: true}: the data goes to data/<id>.json (read by a desk page); latest.json keeps only its status.
 const SOURCES = [
   ['recap', 'Video recap'], ['calendar', 'Report calendar'], ['cot', 'COT positioning'], ['slaughter', 'Livestock slaughter'], ['livestock', 'Livestock prices'],
   ['basis', 'Cash grain basis'], ['weather', 'Weather'], ['drought', 'Drought Monitor'], ['enso', 'ENSO'],
   ['crop_progress', 'Crop progress & condition', {py: 'pipelines/crop_progress/run.py', file: true}],
+  ['wasde', 'WASDE balance sheets', {py: 'pipelines/wasde/run.py', file: true}],
+  ['export_sales', 'Export sales & inspections', {py: 'pipelines/export_sales/run.py', file: true}],
 ];
 // what gets published besides the data: the home page, shared assets and one folder per desk
 const SITE = ['index.html', 'assets', 'grains'];
 
 // Runs a Python pipeline with the build's environment (keys included) and parses the JSON it prints.
-function runPy(script, timeoutMin = 20) {
+function runPy(script, cache, timeoutMin = 25) {
+  const env = {...process.env};
+  if (cache) { env.PREV_CACHE = path.join(ROOT, '_site', `.prev-${path.basename(path.dirname(script))}.json`); fs.mkdirSync(path.dirname(env.PREV_CACHE), {recursive: true}); fs.writeFileSync(env.PREV_CACHE, JSON.stringify(cache)); }
   return new Promise((resolve, reject) => execFile(process.env.PYTHON || 'python3', [path.join(ROOT, script)],
-    {cwd: ROOT, env: process.env, timeout: timeoutMin * 60e3, maxBuffer: 512e6}, (err, out, errOut) => {
+    {cwd: ROOT, env, timeout: timeoutMin * 60e3, maxBuffer: 512e6}, (err, out, errOut) => {
+      if (env.PREV_CACHE) fs.rmSync(env.PREV_CACHE, {force: true});
       if (errOut) process.stdout.write(errOut.split('\n').filter(Boolean).map(l => `  [${path.basename(path.dirname(script))}] ${l}`).join('\n') + '\n');
       if (err) return reject(new Error((errOut || err.message).trim().split('\n').pop()));
       try { resolve(JSON.parse(out)); } catch (e) { reject(new Error(`not JSON from ${script}: ${out.slice(0, 120)}`)); }
@@ -38,6 +45,12 @@ async function previous() {
     try { const snap = await getJSON(base + 'data/latest.json?t=' + Date.now(), {timeout: 30, retries: 0}); snap.base = base; return snap; } catch (e) {}
   }
   return null;
+}
+
+// a Python pipeline's published cache (data/<id>.cache.json), if there is one
+async function previousCache(prev, id) {
+  if (!prev?.series?.[id]?.cache) return null;
+  try { return await getJSON(prev.base + prev.series[id].cache + '?t=' + Date.now(), {timeout: 120, retries: 1}); } catch (e) { return null; }
 }
 
 // previous published copy of a source: inside latest.json, or its own data/<id>.json for desk sources
@@ -56,12 +69,18 @@ async function main() {
   const prev = await previous();
   console.log(prev ? `previous snapshot: ${prev.generated}` : 'no previous snapshot (first run?)');
 
-  const series = {}, failed = [];
+  const series = {}, failed = [], caches = {};
   for (const [id, label, opt = {}] of SOURCES) {
-    if (only.length && !only.includes(id)) { const old = await previousOf(prev, id); if (old) series[id] = old; continue; }
+    if (only.length && !only.includes(id)) {
+      const old = await previousOf(prev, id); if (old) series[id] = old;
+      if (opt.py) caches[id] = await previousCache(prev, id);
+      continue;
+    }
     const t0 = Date.now();
     try {
-      const r = opt.py ? await runPy(opt.py) : await (await import(`./sources/${id}.mjs`)).load({now, keys, prev: prev?.series?.[id]?.data || null});
+      const pc = opt.py ? await previousCache(prev, id) : null;
+      const r = opt.py ? await runPy(opt.py, pc) : await (await import(`./sources/${id}.mjs`)).load({now, keys, prev: prev?.series?.[id]?.data || null});
+      if (opt.py) caches[id] = r.cache || null;
       series[id] = {label, state: r.partial ? 'PARTIAL' : 'OK', latest: r.latest || null, n: r.n ?? null, src: r.src || '', note: r.note || '',
         built: now.toISOString(), data: r.data};
       console.log(`${id}: ${series[id].state} (${((Date.now() - t0) / 1000).toFixed(1)}s) latest ${r.latest}${r.note ? ' · ' + r.note : ''}`);
@@ -69,6 +88,7 @@ async function main() {
       failed.push(id);
       const old = await previousOf(prev, id);
       const why = (e.message || String(e)).replace(/\s+/g, ' ').slice(0, 300);
+      if (opt.py) caches[id] = await previousCache(prev, id);   // keep the history for the next run
       series[id] = old?.data ? {...old, state: 'CACHED', note: `today's fetch failed (${why}); showing the copy built ${old.built}`}
         : {label, state: 'FAILED', latest: null, n: 0, src: '', note: why, built: now.toISOString(), data: null};
       console.log(`${id}: FAILED (${why})`);
@@ -87,8 +107,9 @@ async function main() {
   // desk sources: full entry in data/<id>.json, status only in latest.json
   for (const [id, , opt = {}] of SOURCES) {
     if (!opt.file || !series[id]) continue;
-    fs.writeFileSync(path.join(site, `data/${id}.json`), JSON.stringify({...series[id], file: undefined}));
-    series[id] = {...series[id], data: null, file: `data/${id}.json`};
+    fs.writeFileSync(path.join(site, `data/${id}.json`), JSON.stringify({...series[id], file: undefined, cache: undefined}));
+    series[id] = {...series[id], data: null, file: `data/${id}.json`, cache: undefined};
+    if (caches[id]) { fs.writeFileSync(path.join(site, `data/${id}.cache.json`), JSON.stringify(caches[id])); series[id].cache = `data/${id}.cache.json`; }
   }
   fs.writeFileSync(path.join(site, 'data/latest.json'), JSON.stringify(snapshot));
   if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `failed=${failed.join(' ')}\n`);
