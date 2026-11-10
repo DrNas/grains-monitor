@@ -16,6 +16,10 @@ const PAGES = (process.env.PAGES_URL ? [process.env.PAGES_URL] : ['https://grain
 // {py: 'pipelines/<x>/run.py'}: a Python pipeline that prints {data, latest, n, src, note, partial} as JSON on stdout.
 //   It may also return `cache`: kept in data/<id>.cache.json (never read by a page) and handed back to the next run
 //   as the file named by the PREV_CACHE environment variable, so history that never changes is downloaded once.
+//   It may return `files` ({name: object}): published as data/<id>/<name>.json (e.g. one history per market, loaded
+//   by the page on demand); a failed run republishes the previous ones.
+//   It gets the previous build's `latest` as PREV_LATEST and may print {reuse: true, note} when nothing new is out:
+//   the previous copy (data and files) is then republished unchanged, which saves slow downloads.
 // {file: true}: the data goes to data/<id>.json (read by a desk page); latest.json keeps only its status.
 const SOURCES = [
   ['recap', 'Video recap'], ['calendar', 'Report calendar'], ['cot', 'COT positioning'], ['slaughter', 'Livestock slaughter'], ['livestock', 'Livestock prices'],
@@ -24,13 +28,14 @@ const SOURCES = [
   ['wasde', 'WASDE balance sheets', {py: 'pipelines/wasde/run.py', file: true}],
   ['export_sales', 'Export sales & inspections', {py: 'pipelines/export_sales/run.py', file: true}],
   ['energy', 'Energy (EIA)', {py: 'pipelines/energy/run.py', file: true}],
+  ['positioning', 'Positioning (COT & CIT)', {py: 'pipelines/positioning/run.py', file: true}],
 ];
 // what gets published besides the data: the home page, shared assets and one folder per desk
-const SITE = ['index.html', 'assets', 'grains', 'energy'];
+const SITE = ['index.html', 'assets', 'grains', 'energy', 'positioning'];
 
 // Runs a Python pipeline with the build's environment (keys included) and parses the JSON it prints.
-function runPy(script, cache, timeoutMin = 25) {
-  const env = {...process.env};
+function runPy(script, cache, prevLatest, timeoutMin = 25) {
+  const env = {...process.env, PREV_LATEST: prevLatest || ''};
   if (cache) { env.PREV_CACHE = path.join(ROOT, '_site', `.prev-${path.basename(path.dirname(script))}.json`); fs.mkdirSync(path.dirname(env.PREV_CACHE), {recursive: true}); fs.writeFileSync(env.PREV_CACHE, JSON.stringify(cache)); }
   return new Promise((resolve, reject) => execFile(process.env.PYTHON || 'python3', [path.join(ROOT, script)],
     {cwd: ROOT, env, timeout: timeoutMin * 60e3, maxBuffer: 512e6}, (err, out, errOut) => {
@@ -70,18 +75,32 @@ async function main() {
   const prev = await previous();
   console.log(prev ? `previous snapshot: ${prev.generated}` : 'no previous snapshot (first run?)');
 
-  const series = {}, failed = [], caches = {};
+  const series = {}, failed = [], caches = {}, extra = {};
+  // a desk source's extra files from the previous build (data/<id>/<name>.json)
+  const previousFiles = async (old, id) => {
+    const out = {};
+    for (const n of old?.files || []) { try { out[n] = await getJSON(`${prev.base}data/${id}/${n}.json?t=${Date.now()}`, {timeout: 60, retries: 1}); } catch (e) {} }
+    return out;
+  };
   for (const [id, label, opt = {}] of SOURCES) {
     if (only.length && !only.includes(id)) {
       const old = await previousOf(prev, id); if (old) series[id] = old;
-      if (opt.py) caches[id] = await previousCache(prev, id);
+      if (opt.py) { caches[id] = await previousCache(prev, id); extra[id] = await previousFiles(old, id); }
       continue;
     }
     const t0 = Date.now();
     try {
       const pc = opt.py ? await previousCache(prev, id) : null;
-      const r = opt.py ? await runPy(opt.py, pc) : await (await import(`./sources/${id}.mjs`)).load({now, keys, prev: prev?.series?.[id]?.data || null});
-      if (opt.py) caches[id] = r.cache || null;
+      const r = opt.py ? await runPy(opt.py, pc, prev?.series?.[id]?.latest) : await (await import(`./sources/${id}.mjs`)).load({now, keys, prev: prev?.series?.[id]?.data || null});
+      if (r.reuse) {   // nothing new at the source: republish the previous copy
+        const old = await previousOf(prev, id);
+        if (!old?.data) throw new Error('nothing new to fetch, but no previous copy to reuse');
+        series[id] = {...old, state: 'OK', note: r.note || old.note || ''};
+        caches[id] = pc; extra[id] = await previousFiles(old, id);
+        console.log(`${id}: OK (${((Date.now() - t0) / 1000).toFixed(1)}s) unchanged, latest ${old.latest}`);
+        continue;
+      }
+      if (opt.py) { caches[id] = r.cache || null; extra[id] = r.files || {}; }
       series[id] = {label, state: r.partial ? 'PARTIAL' : 'OK', latest: r.latest || null, n: r.n ?? null, src: r.src || '', note: r.note || '',
         built: now.toISOString(), data: r.data};
       console.log(`${id}: ${series[id].state} (${((Date.now() - t0) / 1000).toFixed(1)}s) latest ${r.latest}${r.note ? ' · ' + r.note : ''}`);
@@ -89,7 +108,7 @@ async function main() {
       failed.push(id);
       const old = await previousOf(prev, id);
       const why = (e.message || String(e)).replace(/\s+/g, ' ').slice(0, 300);
-      if (opt.py) caches[id] = await previousCache(prev, id);   // keep the history for the next run
+      if (opt.py) { caches[id] = await previousCache(prev, id); extra[id] = await previousFiles(old, id); }   // keep the history for the next run
       series[id] = old?.data ? {...old, state: 'CACHED', note: `today's fetch failed (${why}); showing the copy built ${old.built}`}
         : {label, state: 'FAILED', latest: null, n: 0, src: '', note: why, built: now.toISOString(), data: null};
       console.log(`${id}: FAILED (${why})`);
@@ -108,8 +127,14 @@ async function main() {
   // desk sources: full entry in data/<id>.json, status only in latest.json
   for (const [id, , opt = {}] of SOURCES) {
     if (!opt.file || !series[id]) continue;
-    fs.writeFileSync(path.join(site, `data/${id}.json`), JSON.stringify({...series[id], file: undefined, cache: undefined}));
-    series[id] = {...series[id], data: null, file: `data/${id}.json`, cache: undefined};
+    const ex = extra[id] || {};
+    if (Object.keys(ex).length) {
+      fs.mkdirSync(path.join(site, 'data', id), {recursive: true});
+      for (const [n, obj] of Object.entries(ex)) fs.writeFileSync(path.join(site, 'data', id, `${n}.json`), JSON.stringify(obj));
+    }
+    const files = Object.keys(ex);   // listed in both files, so the next build knows what to carry forward
+    fs.writeFileSync(path.join(site, `data/${id}.json`), JSON.stringify({...series[id], file: undefined, cache: undefined, files}));
+    series[id] = {...series[id], data: null, file: `data/${id}.json`, cache: undefined, files};
     if (caches[id]) { fs.writeFileSync(path.join(site, `data/${id}.cache.json`), JSON.stringify(caches[id])); series[id].cache = `data/${id}.cache.json`; }
   }
   fs.writeFileSync(path.join(site, 'data/latest.json'), JSON.stringify(snapshot));

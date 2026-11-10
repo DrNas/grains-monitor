@@ -13,7 +13,7 @@
   const dLabel = (s, o = {month: 'short', day: 'numeric', year: 'numeric'}) => s ? new Date(s.slice(0, 10) + 'T12:00:00Z').toLocaleDateString('en-US', {timeZone: 'UTC', ...o}) : '—';
 
   // Site navigation: the home page, then one entry per desk. Add a desk here (and in index.html's nav.desks) when its page goes live.
-  const DESKS = [['', 'Home'], ['grains/', 'Grains'], ['energy/', 'Energy']];
+  const DESKS = [['', 'Home'], ['positioning/', 'Positioning'], ['grains/', 'Grains'], ['energy/', 'Energy']];
 
   function header(title) {
     const here = document.documentElement.dataset.desk || '';

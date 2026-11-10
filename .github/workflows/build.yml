@@ -15,7 +15,7 @@ on:
   workflow_dispatch:           # "Run workflow" button on the Actions tab
   push:
     branches: [main]
-    paths: ['index.html', 'assets/**', 'grains/**', 'energy/**', 'scripts/**', 'pipelines/**', 'data/**', '.github/workflows/build.yml']
+    paths: ['index.html', 'assets/**', 'grains/**', 'energy/**', 'positioning/**', 'scripts/**', 'pipelines/**', 'data/**', '.github/workflows/build.yml']
 
 permissions:
   contents: read

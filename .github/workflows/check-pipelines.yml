@@ -8,7 +8,7 @@ on:
     inputs:
       only:
         description: 'Sources to run (comma separated ids from scripts/build-data.mjs)'
-        default: 'crop_progress,wasde,export_sales,energy'
+        default: 'crop_progress,wasde,export_sales,energy,positioning'
   push:
     branches-ignore: [main]
     paths: ['pipelines/**', 'data/wasde/**', 'scripts/build-data.mjs', '.github/workflows/check-pipelines.yml']
@@ -37,7 +37,7 @@ jobs:
       - name: Run the pipelines
         id: build
         env:
-          ONLY: ${{ inputs.only || 'crop_progress,wasde,export_sales,energy' }}
+          ONLY: ${{ inputs.only || 'crop_progress,wasde,export_sales,energy,positioning' }}
           MMN_API_KEY: ${{ secrets.MMN_API_KEY }}
           NASS_API_KEY: ${{ secrets.NASS_API_KEY }}
           DATAGOV_API_KEY: ${{ secrets.DATAGOV_API_KEY }}

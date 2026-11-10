@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en" data-root="../" data-desk="positioning">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Positioning Desk</title>
+<meta name="description" content="Positioning desk: CFTC Commitments of Traders for the Bloomberg Commodity Index markets, with a weekly desk brief, positioning monitor, contrarian setups, percentile heatmap, index-trader (CIT) flows, scatter and seasonality.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="../assets/site.css">
+<style>
+.brief p{margin:5px 0;line-height:1.5} .brief b{color:var(--text)}
+.setups{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.setups .tile div.it{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:1px 0;cursor:pointer}
+.setups .tile div.it:hover{color:var(--blue)}
+.tone-bull{color:var(--short)} .tone-bear{color:var(--long)} .tone-flat{color:var(--muted)}
+td.read{white-space:normal;min-width:320px;max-width:520px;color:var(--muted);font-size:11.5px}
+.spark{vertical-align:middle}
+table.heat td.h{padding:0;width:18px;height:18px}
+</style>
+</head>
+<body>
+<header></header>
+<main>
+  <div class="hbar">
+    <span class="muted">Look-back</span><span class="ctl seg" id="win"><button data-w="y1">1y</button><button data-w="y3">3y</button><button data-w="y5">5y</button><button data-w="f">Since 2006</button></span>
+    <span class="muted">Crop year</span><span class="ctl seg" id="crop"><button data-c="all">All</button><button data-c="old">Old crop</button><button data-c="other">New crop</button></span>
+    <span class="muted" id="asof"></span>
+  </div>
+
+  <section id="brief-sec">
+    <h2>Desk brief <span class="ctl"><button id="copy">Copy as text</button></span></h2>
+    <p class="sub">A written read of this week's CFTC report: managed money (funds) against producers and merchants (commercials), in every Bloomberg Commodity Index market the CFTC reports. Positioning, not a price forecast.</p>
+    <div class="grid g2"><div id="brief-card"></div><div id="setup-card"></div></div>
+  </section>
+
+  <section id="monitor">
+    <h2>Positioning monitor</h2>
+    <p class="sub">Every market ranked by setup score (−100 to +100): crowding by COT index, commercial positioning, and whether fund flow has started to turn. Click a market for its history.</p>
+    <div id="mon-card"></div>
+    <div class="grid g2" style="margin-top:10px"><div id="sector-card"></div><div id="scatter-card"></div></div>
+  </section>
+
+  <section id="heat-sec">
+    <h2>Fund positioning heatmap</h2>
+    <div id="heat-card"></div>
+  </section>
+
+  <section id="cit">
+    <h2>Index traders (CIT)</h2>
+    <p class="sub">CFTC's supplemental report: commodity index funds in 13 agricultural markets, against managed money. Index money moves on allocation decisions and the January reweighting, not on fundamentals.</p>
+    <div id="cit-tiles"></div>
+    <div class="grid g2"><div id="cit-card"></div><div id="breadth-card"></div></div>
+  </section>
+
+  <section id="detail">
+    <h2><span id="det-title">Market detail</span> <span class="ctl"><select id="det-sel"></select></span></h2>
+    <div class="grid g2" id="det-grid"></div>
+  </section>
+</main>
+<script src="../assets/desk.js"></script>
+<script src="insights.js"></script>
+<script>
+'use strict';
+const D = Desk, {fmtN, fmtS, cls, esc} = D, CI = COTInsights;
+D.header('Positioning');
+D.footer('CFTC Commitments of Traders, disaggregated, futures and options combined; CFTC Supplemental (Commodity Index Traders)');
+
+let P = null, SNAP = null, win = D.restore('pos_win', 'y3'), crop = D.restore('pos_crop', 'all'), A = null, sel = D.restore('pos_mkt', 'C');
+const SERIES = {};
+const k = CI.k, sk = CI.sk, ord = CI.ord;
+const tone = t => `tone-${t}`;
+const toneColor = t => t === 'bull' ? D.css('--short') : t === 'bear' ? D.css('--long') : D.css('--muted');
+function spark(arr, w = 90, h = 18) {
+  const a = (arr || []).filter(v => v != null); if (a.length < 2) return '';
+  const mn = Math.min(...a), mx = Math.max(...a), rg = mx - mn || 1;
+  const pts = a.map((v, i) => `${(i / (a.length - 1) * w).toFixed(1)},${(h - (v - mn) / rg * (h - 2) - 1).toFixed(1)}`).join(' ');
+  const z = mn < 0 && mx > 0 ? `<line x1="0" x2="${w}" y1="${(h - (0 - mn) / rg * (h - 2) - 1).toFixed(1)}" y2="${(h - (0 - mn) / rg * (h - 2) - 1).toFixed(1)}" stroke="${D.css('--grid')}"/>` : '';
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${z}<polyline fill="none" stroke="${D.css('--blue')}" stroke-width="1.3" points="${pts}"/></svg>`;
+}
+
+function renderBrief() {
+  const L = CI.brief(A);
+  document.getElementById('brief-card').innerHTML = D.card({title: `Week ending ${D.dLabel(A.date)}`, entry: P, asof: A.date,
+    body: `<div class="brief">${L.map(l => `<p><b>${esc(l.h)}.</b> ${esc(l.t)}</p>`).join('')}</div>`});
+  const list = (title, t, rows, val) => `<div class="tile"><div class="cs ${tone(t)}">${title}</div>${rows.length ? rows.map(r =>
+    `<div class="it" data-mkt="${r.ticker}" title="${esc(r.read)}"><span>${esc(r.name)}</span><span class="muted">${val(r)}</span></div>`).join('') : '<div class="cs">none this week</div>'}</div>`;
+  const sc = r => (r.score > 0 ? '+' : '') + r.score;
+  document.getElementById('setup-card').innerHTML = D.card({title: 'Setups and risk flags', entry: P, asof: A.date,
+    sub: 'Hover a market for its one-line read; click for its history.',
+    body: `<div class="setups">${list('Contrarian long setups', 'bull', A.longSetups, sc)}${list('Contrarian short setups', 'bear', A.shortSetups, sc)}
+      ${list('Short-squeeze fuel', 'bull', A.squeeze, r => 'shorts ' + ord(r.mm.p.S[A.win]) + ' pct')}${list('Long-liquidation risk', 'bear', A.liqRisk, r => 'longs ' + ord(r.mm.p.L[A.win]) + ' pct')}
+      ${list('Spec / commercial divergence', 'flat', A.divergences, r => r.comm.tone === 'bull' ? 'bullish' : 'bearish')}</div>`});
+}
+
+function renderMonitor() {
+  const rows = A.rows.slice().sort((a, b) => b.score - a.score);
+  document.getElementById('mon-card').innerHTML = D.card({title: `Managed money, ${CI.WIN_LBL[win]} look-back${crop !== 'all' ? (crop === 'old' ? ', old crop' : ', new crop') : ''}`, entry: P, asof: A.date,
+    body: D.table([
+      {h: 'Market', f: r => `<a href="#detail" data-mkt="${r.ticker}">${esc(r.name)}</a>`},
+      {h: 'Regime', f: r => `<span class="${tone(r.reg.tone)}">${esc(r.reg.lbl)}</span>`},
+      {h: 'MM net', n: 1, f: r => sk(r.mm.N)},
+      {h: 'Δ w/w', n: 1, f: r => `<span class="${cls(r.mm.dN)}">${sk(r.mm.dN)}</span>`},
+      {h: 'Flow σ', n: 1, f: r => `<span class="${cls(r.z)}">${fmtS(r.z, 1)}</span>`},
+      {h: 'Driver', f: r => esc(r.drv.main)},
+      {h: '52-wk net', f: r => spark(r.mm.spark)},
+      {h: 'COT idx', n: 1, f: r => fmtN(r.cot, 0)},
+      {h: 'Net %ile', n: 1, f: r => fmtN(r.pN, 0)},
+      {h: 'P/M %ile', n: 1, f: r => fmtN(r.pmP, 0)},
+      {h: 'Setup', n: 1, f: r => `<span class="${tone(r.setup.tone)}" title="${esc(r.setup.lbl)}">${r.score > 0 ? '+' : ''}${r.score}</span>`},
+      {h: 'Desk read', f: r => esc(r.read), c: () => 'read'},
+    ], rows)});
+  document.getElementById('sector-card').innerHTML = D.card({title: 'Sectors', entry: P, asof: A.date, sub: 'Average COT index and net change in fund positioning as a share of open interest.',
+    body: D.table([{h: 'Sector', f: s => esc(s.sector)}, {h: 'Markets', n: 1, f: s => s.n}, {h: 'Avg COT idx', n: 1, f: s => fmtN(s.cot, 0)},
+      {h: 'Bought / sold', n: 1, f: s => `${s.buy} / ${s.sell}`}, {h: 'Δ net % OI', n: 1, f: s => `<span class="${cls(s.dnp)}">${fmtS(s.dnp, 1)}</span>`}],
+      A.sectors.slice().sort((a, b) => b.cot - a.cot))});
+  // scatter: commercials vs funds net percentile
+  const sr = CI.scatterRows(SNAP, win, crop);
+  document.getElementById('scatter-card').innerHTML = D.card({title: 'Commercials vs funds (net position percentile)', entry: P, asof: A.date, exp: 'c-scat',
+    sub: 'Top-left: funds crowded long while commercials sell (bearish); bottom-right: the reverse.', body: '<div class="cb"><canvas id="c-scat"></canvas></div>'});
+  D.chart('c-scat', {type: 'scatter', data: {datasets: [{label: 'markets', data: sr.map(r => ({x: r.pNP, y: r.mNP, n: r.comm})), backgroundColor: D.css('--blue'), pointRadius: 5}]},
+    options: {interaction: {mode: 'nearest', intersect: true}, plugins: {legend: {display: false}, tooltip: {callbacks: {label: q => `${q.raw.n}: commercials ${fmtN(q.raw.x, 0)}, funds ${fmtN(q.raw.y, 0)}`}}, crosshair: {}},
+      scales: {x: {min: 0, max: 100, title: {display: true, text: 'producer/merchant net percentile'}}, y: {min: 0, max: 100, title: {display: true, text: 'managed money net percentile'}}}}});
+}
+
+function renderHeat() {
+  const h = SNAP.heat; if (!h?.rows?.length) return;
+  const col = v => v == null ? 'transparent' : `color-mix(in srgb, var(${v >= 50 ? '--long' : '--short'}) ${Math.round(Math.abs(v - 50) * 1.9)}%, transparent)`;
+  document.getElementById('heat-card').innerHTML = D.card({title: 'Managed money net, percentile against the previous 3 years, last 26 reports', entry: P, asof: h.dates.at(-1),
+    sub: 'Orange: crowded long; blue: crowded short. Hover a cell for its value.',
+    body: `<div class="tw"><table class="heat" style="width:auto"><tr><th>Market</th>${h.dates.map((d, i) => `<th style="padding:0 1px;font-weight:400">${i % 4 === 0 || i === h.dates.length - 1 ? D.dLabel(d, {month: 'numeric', day: 'numeric'}) : ''}</th>`).join('')}</tr>
+      ${h.rows.map(r => `<tr><td><a href="#detail" data-mkt="${r.ticker}">${esc(r.name)}</a></td>${r.v.map((v, i) => `<td class="h" style="background:${col(v)}" title="${esc(r.name)} ${h.dates[i]}: ${v == null ? '—' : fmtN(v, 0)}"></td>`).join('')}</tr>`).join('')}</table></div>`});
+}
+
+function renderCIT() {
+  const c = SNAP.cit_agg;
+  if (!c) { document.getElementById('cit-tiles').innerHTML = '<p class="note">No CIT data in this build.</p>'; return; }
+  const T = c.total;
+  document.getElementById('cit-tiles').innerHTML = D.tiles([
+    {label: `Index net long, ${c.n} markets`, value: k(T.N), sub: `w/w ${sk(T.dN)} · 4 weeks ${sk(T.dN4)} contracts`},
+    {label: 'Managed money in the same markets', value: k(T.mmN), sub: `w/w ${sk(T.mmdN)}`},
+    {label: 'Markets where index money added (4 wk)', value: `${c.adding4} of ${c.n}`, sub: c.breadth4_pct != null ? `breadth ${ord(c.breadth4_pct)} percentile` : ''},
+    {label: 'Avg change in index share of OI', value: fmtS(c.avg_dnp4, 2) + ' pts', sub: `4 weeks · 13 weeks ${fmtS(c.avg_dnp13, 2)}`},
+    ...(c.rebal ? [{label: 'January reweight window', value: 'on', sub: 'moves are mostly mechanical'}] : [])]);
+  document.getElementById('cit-card').innerHTML = D.card({title: 'Index traders by market', entry: P, asof: c.date,
+    body: D.table([{h: 'Market', f: m => `<a href="#detail" data-mkt="${m.t}">${esc(m.name)}</a>`}, {h: 'Sector', f: m => esc(m.sector)},
+      {h: 'Index net', n: 1, f: m => k(m.N)}, {h: 'w/w', n: 1, f: m => `<span class="${cls(m.dN)}">${sk(m.dN)}</span>`}, {h: '4 wk', n: 1, f: m => `<span class="${cls(m.dN4)}">${sk(m.dN4)}</span>`},
+      {h: 'Δ % OI (4 wk)', n: 1, f: m => fmtS(m.dnp4, 2)}, {h: 'Funds net', n: 1, f: m => k(m.mmN)}, {h: 'Funds w/w', n: 1, f: m => `<span class="${cls(m.mmdN)}">${sk(m.mmdN)}</span>`}],
+      c.markets.slice().sort((a, b) => b.N - a.N))});
+  const b = c.breadth_hist;
+  document.getElementById('breadth-card').innerHTML = D.card({title: 'Breadth of index adding', entry: P, asof: c.date, exp: 'c-br',
+    sub: 'Share of CIT markets where index traders added over the last 4 weeks.', body: '<div class="cb"><canvas id="c-br"></canvas></div>'});
+  D.chart('c-br', {type: 'line', data: {labels: b.dates, datasets: [{label: '% of markets adding', data: b.v, borderColor: D.css('--orange'), borderWidth: 1.4, pointRadius: 0}]},
+    options: {plugins: {legend: {display: false}, crosshair: {x: i => D.dLabel(b.dates[Math.round(i)]), y: {y: v => fmtN(v, 0) + '%'}}},
+      scales: {x: {ticks: {maxRotation: 0, autoSkip: true, maxTicksLimit: 8, callback(v) { return this.getLabelForValue(v).slice(0, 4); }}}, y: {min: 0, max: 100}}}});
+}
+
+// ---- market detail (history loaded on demand)
+async function renderDetail() {
+  const m = P.data.manifest.commodities.find(c => c.ticker === sel) || P.data.manifest.commodities[0];
+  sel = m.ticker; D.save('pos_mkt', sel);
+  document.getElementById('det-sel').value = sel;
+  document.getElementById('det-title').textContent = m.name;
+  const grid = document.getElementById('det-grid');
+  if (!SERIES[sel]) { grid.innerHTML = '<p class="note">Loading history…</p>'; SERIES[sel] = await D.load(`positioning/${sel}`); }
+  const s = SERIES[sel];
+  if (!s?.dates) { grid.innerHTML = '<p class="note">No history file for this market in this build.</p>'; return; }
+  const ct = s.ct[crop] ? crop : 'all', b = s.ct[ct], n = s.dates.length, from = Math.max(0, n - 260);
+  const dates = s.dates.slice(from), net = cat => b[cat].l.slice(from).map((l, i) => l == null ? null : l - b[cat].s[from + i]);
+  const row = A.rows.find(r => r.ticker === sel);
+  const cards = [];
+  cards.push(D.card({title: `${esc(m.name)}: net positions by trader group${ct !== 'all' ? (ct === 'old' ? ' (old crop)' : ' (new crop)') : ''}`, entry: P, asof: s.dates.at(-1), exp: 'c-net',
+    sub: row ? esc(row.read) : '', body: '<div class="cb"><canvas id="c-net"></canvas></div>'}));
+  cards.push(D.card({title: 'Number of traders: managed money', entry: P, asof: s.dates.at(-1), exp: 'c-tr', body: '<div class="cb"><canvas id="c-tr"></canvas></div>'}));
+  // seasonality: managed money net by week of year, this year against the previous five
+  cards.push(D.card({title: 'Seasonality: managed money net by week of year', entry: P, asof: s.dates.at(-1), exp: 'c-sea',
+    sub: 'This year and last year against the range and average of the previous five years.', body: '<div class="cb"><canvas id="c-sea"></canvas></div>'}));
+  if (s.cit) cards.push(D.card({title: 'Index traders (CIT) vs managed money', entry: P, asof: s.dates.at(-1), exp: 'c-cit', body: '<div class="cb"><canvas id="c-cit"></canvas></div>'}));
+  grid.innerHTML = cards.join('');
+  const C = D.css, xd = {ticks: {maxRotation: 0, autoSkip: true, maxTicksLimit: 7, callback(v) { return D.dLabel(this.getLabelForValue(v), {month: 'short', year: '2-digit'}); }}};
+  const ch = {x: i => D.dLabel(dates[Math.round(i)]), y: {y: v => k(v)}};
+  D.chart('c-net', {type: 'line', data: {labels: dates, datasets: [
+    {label: 'managed money', data: net('managed_money'), borderColor: C('--orange'), borderWidth: 2, pointRadius: 0},
+    {label: 'producer/merchant', data: net('prod_merc'), borderColor: C('--blue'), borderWidth: 1.4, pointRadius: 0},
+    {label: 'swap dealers', data: net('swap_dealers'), borderColor: C('--purple'), borderWidth: 1.2, pointRadius: 0},
+    {label: 'other reportable', data: net('other_rept'), borderColor: C('--grey'), borderWidth: 1, pointRadius: 0}]}, options: {plugins: {crosshair: ch}, scales: {x: xd}}});
+  D.chart('c-tr', {type: 'line', data: {labels: dates, datasets: [
+    {label: 'long traders', data: b.managed_money.tl.slice(from), borderColor: C('--short'), borderWidth: 1.4, pointRadius: 0},
+    {label: 'short traders', data: b.managed_money.ts.slice(from), borderColor: C('--long'), borderWidth: 1.4, pointRadius: 0}]}, options: {plugins: {crosshair: {x: ch.x, y: {y: v => fmtN(v, 0)}}}, scales: {x: xd}}});
+  // seasonality from the full history
+  const allNet = b.managed_money.l.map((l, i) => l == null ? null : l - b.managed_money.s[i]);
+  const wkOf = d => { const t = new Date(d + 'T12:00:00Z'), j = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return Math.min(52, Math.floor((t - j) / 6048e5) + 1); };
+  const byY = {};
+  s.dates.forEach((d, i) => { if (allNet[i] == null) return; const y = +d.slice(0, 4); (byY[y] ||= {})[wkOf(d)] = allNet[i]; });
+  const cy = +s.dates.at(-1).slice(0, 4), prev = [1, 2, 3, 4, 5].map(i => byY[cy - i]).filter(Boolean), W = [...Array(52)].map((_, i) => i + 1);
+  const st = f => W.map(w => { const v = prev.map(p => p[w]).filter(x => x != null); return v.length >= 3 ? f(v) : null; });
+  D.chart('c-sea', {type: 'line', data: {labels: W, datasets: [
+    {label: '5-yr max', data: st(v => Math.max(...v)), borderColor: 'transparent', backgroundColor: C('--grey') + '40', fill: '+1', pointRadius: 0},
+    {label: '5-yr range', data: st(v => Math.min(...v)), borderColor: 'transparent', pointRadius: 0},
+    {label: '5-yr avg', data: st(v => v.reduce((a, b) => a + b, 0) / v.length), borderColor: C('--text'), borderDash: [4, 3], borderWidth: 1.2, pointRadius: 0},
+    {label: String(cy - 1), data: W.map(w => byY[cy - 1]?.[w] ?? null), borderColor: C('--blue'), borderWidth: 1.3, pointRadius: 0, spanGaps: true},
+    {label: String(cy), data: W.map(w => byY[cy]?.[w] ?? null), borderColor: C('--orange'), borderWidth: 2.4, pointRadius: 0, spanGaps: true}]},
+    options: {plugins: {legend: {labels: {filter: i => i.text !== '5-yr max'}}, crosshair: {x: i => 'week ' + (Math.round(i) + 1), y: {y: v => k(v)}}}, scales: {x: {ticks: {maxTicksLimit: 13}, title: {display: true, text: 'week of year'}}}}});
+  if (s.cit) {
+    const cn = s.cit.l.slice(from).map((l, i) => l == null ? null : l - s.cit.s[from + i]);
+    D.chart('c-cit', {type: 'line', data: {labels: dates, datasets: [
+      {label: 'index traders net', data: cn, borderColor: C('--green'), borderWidth: 2, pointRadius: 0, spanGaps: true},
+      {label: 'managed money net', data: net('managed_money'), borderColor: C('--orange'), borderWidth: 1.3, pointRadius: 0}]}, options: {plugins: {crosshair: ch}, scales: {x: xd}}});
+  }
+}
+
+function renderAll() {
+  A = CI.analyze(SNAP, {win, crop});
+  document.querySelectorAll('#win button').forEach(b => b.classList.toggle('on', b.dataset.w === win));
+  document.querySelectorAll('#crop button').forEach(b => b.classList.toggle('on', b.dataset.c === crop));
+  document.getElementById('asof').textContent = `CFTC report of ${D.dLabel(A.date)} (positions as of Tuesday, published Friday 3:30pm ET)`;
+  renderBrief(); renderMonitor(); renderHeat(); renderCIT(); renderDetail();
+}
+D.seg(document.getElementById('win'), ({w}) => { win = w; D.save('pos_win', w); renderAll(); });
+D.seg(document.getElementById('crop'), ({c}) => { crop = c; D.save('pos_crop', c); renderAll(); });
+document.getElementById('det-sel').onchange = e => { sel = e.target.value; renderDetail(); };
+document.addEventListener('click', e => { const a = e.target.closest('[data-mkt]'); if (a) { sel = a.dataset.mkt; renderDetail(); document.getElementById('detail').scrollIntoView({behavior: 'smooth'}); e.preventDefault(); } });
+document.getElementById('copy').onclick = () => {
+  let t = CI.brief(A).map(l => `${l.h.toUpperCase()}: ${l.t}`).join('\n\n') + '\n\nPOSITIONING MONITOR\n';
+  A.rows.slice().sort((a, b) => b.score - a.score).forEach(r => { t += `• ${r.name} [${r.score > 0 ? '+' : ''}${r.score}]: ${r.read}\n`; });
+  navigator.clipboard?.writeText(t).then(() => { const b = document.getElementById('copy'); b.textContent = 'Copied'; setTimeout(() => b.textContent = 'Copy as text', 1500); });
+};
+
+(async () => {
+  P = await D.load('positioning');
+  D.stamp([P]);
+  if (!P?.data) { document.getElementById('brief-card').innerHTML = '<p class="note">Positioning data has not been built yet.</p>'; return; }
+  SNAP = P.data.snapshot;
+  document.getElementById('det-sel').innerHTML = P.data.manifest.commodities.map(c => `<option value="${c.ticker}">${esc(c.name)}</option>`).join('');
+  renderAll();
+})();
+</script>
+</body>
+</html>
