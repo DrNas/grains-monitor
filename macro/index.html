@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en" data-root="../" data-desk="macro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Macro Desk</title>
+<meta name="description" content="Macro desk: fed funds, SOFR, the Treasury yield curve, real yields and breakevens, Treasury cash and bill supply, and the U.S. economy (inflation, jobs, growth), with what each means for commodities. Built from BLS, BEA, New York Fed and U.S. Treasury data.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<header></header>
+<main>
+  <section id="read-sec">
+    <h2>Macro read</h2>
+    <div id="read-card"></div>
+  </section>
+  <section id="rates">
+    <h2>Rates &amp; policy</h2>
+    <p class="sub">New York Fed reference rates (published 8am ET for the previous day) and the U.S. Treasury daily par yield curve (after the close). Futures-implied policy paths need futures prices and come later.</p>
+    <div id="rate-tiles"></div>
+    <div class="grid g2" id="rate-grid"></div>
+  </section>
+  <section id="liq">
+    <h2>Treasury liquidity</h2>
+    <p class="sub">Treasury's cash at the Fed (TGA) and bill supply. A rising TGA and heavy net bill issuance pull cash out of money markets and bank reserves; a falling TGA puts it back.</p>
+    <div id="liq-tiles"></div>
+    <div class="grid g2" id="liq-grid"></div>
+  </section>
+  <section id="econ">
+    <h2>U.S. economy</h2>
+    <div id="econ-card"></div>
+  </section>
+</main>
+<script src="../assets/desk.js"></script>
+<script>
+'use strict';
+const D = Desk, {fmtN, fmtS, cls, esc} = D;
+D.header('Macro');
+D.footer('BLS; BEA and University of Michigan via DBnomics; Federal Reserve Bank of New York; U.S. Treasury (daily par and real yield curves, Daily Treasury Statement, Monthly Statement of the Public Debt, auction results)');
+
+let M = null;
+const C = n => D.css(n);
+const pc = (v, d = 1) => D.ok(v) ? fmtN(v, d) + '%' : '—';
+const bp = v => D.ok(v) ? `${fmtS(v, 0)} bp` : '—';
+const bn = v => D.ok(v) ? `$${fmtN(v, 0)}bn` : '—';
+const xDate = n => ({ticks: {maxRotation: 0, autoSkip: true, maxTicksLimit: n || 7, callback(v) { return D.dLabel(this.getLabelForValue(v), {month: 'short', year: '2-digit'}); }}});
+function spark(arr, w = 90, h = 18, bars = false) {
+  const a = (arr || []).map(p => p[1]).filter(v => v != null); if (a.length < 2) return '';
+  const mn = Math.min(0, ...a), mx = Math.max(...a), rg = mx - mn || 1, y = v => h - (v - mn) / rg * (h - 2) - 1;
+  if (bars) { const bw = w / a.length; return `<svg width="${w}" height="${h}">${a.map((v, i) => `<rect x="${(i * bw).toFixed(1)}" width="${(bw - 1).toFixed(1)}" y="${Math.min(y(v), y(0)).toFixed(1)}" height="${Math.abs(y(v) - y(0)).toFixed(1)}" fill="${v < 0 ? C('--red') : C('--blue')}"/>`).join('')}</svg>`; }
+  return `<svg width="${w}" height="${h}"><polyline fill="none" stroke="${C('--blue')}" stroke-width="1.3" points="${a.map((v, i) => `${(i / (a.length - 1) * w).toFixed(1)},${y(v).toFixed(1)}`).join(' ')}"/></svg>`;
+}
+
+function render() {
+  const d = M.data, rt = d.rates || {}, cv = d.curve, lq = d.liquidity || {};
+  document.getElementById('read-card').innerHTML = D.card({title: 'This week in macro, and the channels into commodities', entry: M, body: `<p class="yt" style="line-height:1.55">${esc(d.read)}</p>`});
+
+  // ---- rates
+  document.getElementById('rate-tiles').innerHTML = D.tiles([
+    {label: 'Fed funds target', value: rt.target_lo != null ? `${fmtN(rt.target_lo, 2)}–${fmtN(rt.target_hi, 2)}%` : '—', sub: (rt.last_moves || []).length ? `last move ${D.dLabel(rt.last_moves.at(-1)[0])}: ${fmtS(rt.last_moves.at(-1)[1] * 100, 0)} bp` : ''},
+    {label: 'Effective fed funds', value: pc(rt.effr, 2), sub: rt.effr_date ? D.dLabel(rt.effr_date) : ''},
+    {label: 'SOFR', value: pc(rt.sofr, 2), sub: rt.sofr_date ? D.dLabel(rt.sofr_date) : ''},
+    {label: '2-year Treasury', value: pc(rt.y2, 2), sub: D.ok(rt.y2_minus_ff) ? `${fmtS(rt.y2_minus_ff * 100, 0)} bp vs fed funds` : ''},
+    {label: '10-year Treasury', value: pc(rt.y10, 2), sub: cv ? `2s10s ${bp(cv.s2s10_bp)} (${fmtS(cv.s2s10_chg_1m_bp, 0)} in a month)` : ''},
+    {label: '10-year real yield', value: pc(rt.real10, 2), sub: D.ok(rt.breakeven10) ? `breakeven inflation ${pc(rt.breakeven10, 2)}` : 'TIPS'}]);
+  const rc = [];
+  const ff = rt.effr_hist || [];
+  if (ff.length) rc.push([D.card({title: 'Fed funds: effective rate and target range, with SOFR', entry: M, asof: rt.effr_date, exp: 'c-ff', body: '<div class="cb"><canvas id="c-ff"></canvas></div>'}), () => {
+    const sm = new Map((rt.sofr_hist || []).map(p => [p[0], p[1]]));
+    D.chart('c-ff', {type: 'line', data: {labels: ff.map(r => r[0]), datasets: [
+      {label: 'target top', data: ff.map(r => r[3]), borderColor: 'transparent', backgroundColor: C('--grey') + '40', fill: '+1', pointRadius: 0, stepped: true},
+      {label: 'target range', data: ff.map(r => r[2]), borderColor: 'transparent', pointRadius: 0, stepped: true},
+      {label: 'effective fed funds', data: ff.map(r => r[1]), borderColor: C('--orange'), borderWidth: 1.8, pointRadius: 0},
+      {label: 'SOFR', data: ff.map(r => sm.get(r[0]) ?? null), borderColor: C('--blue'), borderWidth: 1.1, pointRadius: 0, spanGaps: true}]},
+      options: {plugins: {legend: {labels: {filter: i => i.text !== 'target top'}}, crosshair: {x: i => D.dLabel(ff[Math.round(i)]?.[0]), y: {y: v => fmtN(v, 2) + '%'}}}, scales: {x: xDate(), y: {title: {display: true, text: '%'}}}}});
+  }]);
+  if (cv) {
+    rc.push([D.card({title: `Treasury yield curve, ${D.dLabel(cv.date)}`, entry: M, asof: cv.date, exp: 'c-curve', sub: `3m–10y ${bp(cv.s3m10_bp)}; 2s10s ${bp(cv.s2s10_bp)}.`, body: '<div class="cb"><canvas id="c-curve"></canvas></div>'}), () =>
+      D.chart('c-curve', {type: 'line', data: {labels: cv.curve.map(c => c.tenor), datasets: [
+        {label: 'now', data: cv.curve.map(c => c.now), borderColor: C('--orange'), borderWidth: 2.4, pointRadius: 3},
+        {label: '1 week ago', data: cv.curve.map(c => c.w1), borderColor: C('--blue'), borderWidth: 1.2, pointRadius: 0},
+        {label: '1 month ago', data: cv.curve.map(c => c.m1), borderColor: C('--text'), borderDash: [4, 3], borderWidth: 1.2, pointRadius: 0},
+        {label: '1 year ago', data: cv.curve.map(c => c.y1), borderColor: C('--grey'), borderWidth: 1, pointRadius: 0}]},
+        options: {plugins: {crosshair: {x: i => cv.curve[Math.round(i)]?.tenor || '', y: {y: v => fmtN(v, 2) + '%'}}}, scales: {y: {title: {display: true, text: '%'}}}}})]);
+    const h = cv.hist || {}, labels = (h['10 Yr'] || []).map(p => p[0]), colors = {'3 Mo': '--grey', '2 Yr': '--blue', '10 Yr': '--orange', '30 Yr': '--purple'};
+    rc.push([D.card({title: 'Treasury yields, last 12 months', entry: M, asof: cv.date, exp: 'c-yh', body: '<div class="cb"><canvas id="c-yh"></canvas></div>'}), () =>
+      D.chart('c-yh', {type: 'line', data: {labels, datasets: Object.keys(h).map(t => { const m = new Map(h[t]); return {label: t.replace(' Yr', '-year').replace(' Mo', '-month'), data: labels.map(l => m.get(l) ?? null), borderColor: C(colors[t] || '--text'), borderWidth: 1.5, pointRadius: 0}; })},
+        options: {plugins: {crosshair: {x: i => D.dLabel(labels[Math.round(i)]), y: {y: v => fmtN(v, 2) + '%'}}}, scales: {x: xDate(), y: {title: {display: true, text: '%'}}}}})]);
+    const s = cv.hist_2y10y || [];
+    rc.push([D.card({title: '2s10s: 10-year minus 2-year', entry: M, asof: cv.date, exp: 'c-2s10s', sub: 'Below zero = inverted curve.', body: '<div class="cb"><canvas id="c-2s10s"></canvas></div>'}), () =>
+      D.chart('c-2s10s', {type: 'line', data: {labels: s.map(p => p[0]), datasets: [{label: '2s10s (bp)', data: s.map(p => p[1]), borderColor: C('--orange'), borderWidth: 1.6, pointRadius: 0}]},
+        options: {plugins: {legend: {display: false}, crosshair: {x: i => D.dLabel(s[Math.round(i)]?.[0]), y: {y: v => fmtN(v, 0) + ' bp'}}}, scales: {x: xDate(), y: {title: {display: true, text: 'bp'}}}}})]);
+  }
+  document.getElementById('rate-grid').innerHTML = rc.map(c => c[0]).join('') || '<p class="note">No rates data in this build.</p>';
+  rc.forEach(c => c[1]());
+
+  // ---- liquidity
+  const t = lq.tga, bo = lq.bills_outstanding, bi = lq.bill_issuance;
+  document.getElementById('liq-tiles').innerHTML = D.tiles([
+    {label: 'Treasury General Account', value: t ? bn(t.bn) : '—', sub: t ? `${D.dLabel(t.date)} · 1 wk ${fmtS(t.chg_1w, 0)} · 1 mo ${fmtS(t.chg_1m, 0)}` : ''},
+    {label: 'Bills outstanding', value: bo ? `$${fmtN(bo.bn / 1000, 2)}tn` : '—', sub: bo ? `${D.dLabel(bo.date, {month: 'short', year: 'numeric'})} · 1 mo ${fmtS(bo.chg_1m, 0)}bn · 12 mo ${fmtS(bo.chg_12m, 0)}bn` : ''},
+    {label: 'Net bill issuance, last 4 weeks', value: bi ? `${fmtS(bi.net_4w, 0)}bn` : '—', sub: bi ? `13 weeks ${fmtS(bi.net_13w, 0)}bn` : ''}]);
+  const lc = [];
+  if (t) lc.push([D.card({title: 'Treasury General Account (cash at the Fed)', entry: M, asof: t.date, exp: 'c-tga', body: '<div class="cb"><canvas id="c-tga"></canvas></div>'}), () =>
+    D.chart('c-tga', {type: 'line', data: {labels: t.hist.map(p => p[0]), datasets: [{label: 'TGA ($bn)', data: t.hist.map(p => p[1]), borderColor: C('--orange'), borderWidth: 1.6, pointRadius: 0}]},
+      options: {plugins: {legend: {display: false}, crosshair: {x: i => D.dLabel(t.hist[Math.round(i)]?.[0]), y: {y: v => '$' + fmtN(v, 0) + 'bn'}}}, scales: {x: xDate(), y: {title: {display: true, text: '$bn'}}}}})]);
+  if (bi) { const w = bi.weeks; lc.push([D.card({title: 'Weekly bill issuance vs maturing bills', entry: M, asof: w.at(-1)[0], exp: 'c-bills', sub: esc(bi.note), body: '<div class="cb"><canvas id="c-bills"></canvas></div>'}), () =>
+    D.chart('c-bills', {type: 'bar', data: {labels: w.map(r => r[0]), datasets: [
+      {type: 'bar', label: 'net', data: w.map(r => r[3]), backgroundColor: w.map(r => r[3] < 0 ? C('--red') : C('--blue'))},
+      {type: 'line', label: 'issued', data: w.map(r => r[1]), borderColor: C('--orange'), borderWidth: 1.2, pointRadius: 0},
+      {type: 'line', label: 'maturing', data: w.map(r => r[2]), borderColor: C('--grey'), borderWidth: 1.2, pointRadius: 0}]},
+      options: {plugins: {crosshair: {x: i => 'week of ' + D.dLabel(w[Math.round(i)]?.[0]), y: {y: v => '$' + fmtN(v, 0) + 'bn'}}}, scales: {x: xDate(), y: {title: {display: true, text: '$bn'}}}}})]); }
+  if (bo) lc.push([D.card({title: 'Marketable bills outstanding', entry: M, asof: bo.date, exp: 'c-bo', body: '<div class="cb"><canvas id="c-bo"></canvas></div>'}), () =>
+    D.chart('c-bo', {type: 'bar', data: {labels: bo.hist.map(p => p[0]), datasets: [{label: 'bills outstanding ($bn)', data: bo.hist.map(p => p[1]), backgroundColor: C('--blue')}]},
+      options: {plugins: {legend: {display: false}, crosshair: {x: i => D.dLabel(bo.hist[Math.round(i)]?.[0], {month: 'short', year: 'numeric'}), y: {y: v => '$' + fmtN(v, 0) + 'bn'}}}, scales: {x: xDate(), y: {title: {display: true, text: '$bn'}}}}})]);
+  document.getElementById('liq-grid').innerHTML = lc.map(c => c[0]).join('') || '<p class="note">No Treasury liquidity data in this build.</p>';
+  lc.forEach(c => c[1]());
+
+  // ---- economy
+  const ind = d.indicators || [], cats = [...new Set(ind.map(i => i.cat))];
+  const val = i => i.kind === 'index' ? `<b>${pc(i.yoy)}</b> y/y` : i.kind === 'k' ? `<b>${fmtS(i.chg, 0)}k</b>` : `<b>${fmtN(i.value, 1)}${i.unit === '%' ? '%' : i.unit.startsWith('%') ? '%' : ''}</b>`;
+  const prevv = i => i.kind === 'index' ? pc(i.yoy_prev) : i.kind === 'k' ? `${fmtS(i.chg_prev, 0)}k` : fmtN(i.prev, 1);
+  const extra = i => i.kind === 'index' ? `m/m ${pc(i.mom, 2)} · 3m ann. ${pc(i.ann3)}` : i.kind === 'k' ? `3-mo avg ${fmtS(i.avg3, 0)}k` : D.ok(i.chg) ? `chg ${fmtS(i.chg, 1)}` : '';
+  document.getElementById('econ-card').innerHTML = D.card({title: 'Latest releases', entry: M, sub: 'Indicators whose free mirror stops updating are left out rather than shown stale.',
+    body: `<div class="tw"><table><tr><th>Indicator</th><th>Period</th><th class="n">Latest</th><th class="n">Previous</th><th>Detail</th><th>2 years</th><th>Source</th></tr>${cats.map(c =>
+      `<tr class="grp"><td colspan="7">${esc(c)}</td></tr>` + ind.filter(i => i.cat === c).map(i => `<tr><td title="${esc(i.note || '')}">${esc(i.name)}</td><td class="muted">${esc(i.period)}</td><td class="n">${val(i)}</td><td class="n muted">${prevv(i)}</td><td class="muted">${extra(i)}</td><td>${spark(i.spark, 90, 18, i.kind === 'k')}</td><td class="muted">${esc(i.source)}</td></tr>`).join('')).join('')}</table></div>`});
+}
+
+(async () => {
+  M = await D.load('macro');
+  D.stamp([M]);
+  if (!M?.data) { document.getElementById('read-card').innerHTML = '<p class="note">Macro data has not been built yet.</p>'; return; }
+  render();
+})();
+</script>
+</body>
+</html>
