@@ -1,0 +1,906 @@
+[
+ {
+  "k": "storL48",
+  "g": "gas",
+  "label": "Gas — Lower 48 working gas",
+  "freq": "weekly",
+  "id": "NW2_EPG0_SWO_R48_BCF",
+  "routes": [
+   "natural-gas/stor/wkly"
+  ],
+  "must": [
+   "working gas",
+   "lower 48"
+  ],
+  "prefer": [],
+  "not": []
+ },
+ {
+  "k": "storEast",
+  "g": "gas",
+  "label": "Gas — East region",
+  "freq": "weekly",
+  "id": "NW2_EPG0_SWO_R31_BCF",
+  "routes": [
+   "natural-gas/stor/wkly"
+  ],
+  "must": [
+   "working gas",
+   "east region"
+  ],
+  "prefer": [],
+  "not": [
+   "salt"
+  ]
+ },
+ {
+  "k": "storMw",
+  "g": "gas",
+  "label": "Gas — Midwest region",
+  "freq": "weekly",
+  "id": "NW2_EPG0_SWO_R32_BCF",
+  "routes": [
+   "natural-gas/stor/wkly"
+  ],
+  "must": [
+   "working gas",
+   "midwest"
+  ],
+  "prefer": [],
+  "not": []
+ },
+ {
+  "k": "storSc",
+  "g": "gas",
+  "label": "Gas — South Central",
+  "freq": "weekly",
+  "id": "NW2_EPG0_SWO_R33_BCF",
+  "routes": [
+   "natural-gas/stor/wkly"
+  ],
+  "must": [
+   "working gas",
+   "south central"
+  ],
+  "prefer": [],
+  "not": [
+   "salt"
+  ]
+ },
+ {
+  "k": "storScSalt",
+  "g": "gas",
+  "label": "Gas — South Central salt",
+  "freq": "weekly",
+  "id": "NW2_EPG0_SSO_R33_BCF",
+  "routes": [
+   "natural-gas/stor/wkly"
+  ],
+  "must": [
+   "working gas",
+   "\\bsalt"
+  ],
+  "prefer": [],
+  "not": [
+   "nonsalt|non-salt"
+  ]
+ },
+ {
+  "k": "storScNon",
+  "g": "gas",
+  "label": "Gas — South Central non-salt",
+  "freq": "weekly",
+  "id": "NW2_EPG0_SNO_R33_BCF",
+  "routes": [
+   "natural-gas/stor/wkly"
+  ],
+  "must": [
+   "working gas",
+   "nonsalt|non-salt"
+  ],
+  "prefer": [],
+  "not": []
+ },
+ {
+  "k": "storMtn",
+  "g": "gas",
+  "label": "Gas — Mountain region",
+  "freq": "weekly",
+  "id": "NW2_EPG0_SWO_R34_BCF",
+  "routes": [
+   "natural-gas/stor/wkly"
+  ],
+  "must": [
+   "working gas",
+   "mountain"
+  ],
+  "prefer": [],
+  "not": []
+ },
+ {
+  "k": "storPac",
+  "g": "gas",
+  "label": "Gas — Pacific region",
+  "freq": "weekly",
+  "id": "NW2_EPG0_SWO_R35_BCF",
+  "routes": [
+   "natural-gas/stor/wkly"
+  ],
+  "must": [
+   "working gas",
+   "pacific"
+  ],
+  "prefer": [],
+  "not": []
+ },
+ {
+  "k": "prodDry",
+  "g": "gas",
+  "label": "Gas — dry production",
+  "freq": "monthly",
+  "id": "N9070US2",
+  "routes": [
+   "natural-gas/prod/sum"
+  ],
+  "must": [
+   "dry",
+   "production"
+  ],
+  "prefer": [
+   "^u\\.s\\."
+  ],
+  "not": []
+ },
+ {
+  "k": "consTot",
+  "g": "gas",
+  "label": "Gas — total consumption",
+  "freq": "monthly",
+  "id": "N9140US2",
+  "routes": [
+   "natural-gas/cons/sum"
+  ],
+  "must": [
+   "total consumption"
+  ],
+  "prefer": [
+   "^u\\.s\\."
+  ],
+  "not": []
+ },
+ {
+  "k": "consRes",
+  "g": "gas",
+  "label": "Gas — residential",
+  "freq": "monthly",
+  "id": "N3010US2",
+  "routes": [
+   "natural-gas/cons/sum"
+  ],
+  "must": [
+   "residential",
+   "consumption"
+  ],
+  "prefer": [
+   "^u\\.s\\."
+  ],
+  "not": []
+ },
+ {
+  "k": "consCom",
+  "g": "gas",
+  "label": "Gas — commercial",
+  "freq": "monthly",
+  "id": "N3020US2",
+  "routes": [
+   "natural-gas/cons/sum"
+  ],
+  "must": [
+   "commercial",
+   "consumption"
+  ],
+  "prefer": [
+   "^u\\.s\\."
+  ],
+  "not": []
+ },
+ {
+  "k": "consInd",
+  "g": "gas",
+  "label": "Gas — industrial",
+  "freq": "monthly",
+  "id": "N3035US2",
+  "routes": [
+   "natural-gas/cons/sum"
+  ],
+  "must": [
+   "industrial",
+   "consumption"
+  ],
+  "prefer": [
+   "^u\\.s\\."
+  ],
+  "not": []
+ },
+ {
+  "k": "consPow",
+  "g": "gas",
+  "label": "Gas — electric power",
+  "freq": "monthly",
+  "id": "N3045US2",
+  "routes": [
+   "natural-gas/cons/sum"
+  ],
+  "must": [
+   "electric power",
+   "consumption"
+  ],
+  "prefer": [
+   "^u\\.s\\."
+  ],
+  "not": []
+ },
+ {
+  "k": "expLng",
+  "g": "gas",
+  "label": "Gas — LNG exports",
+  "freq": "monthly",
+  "id": "N9133US2",
+  "routes": [
+   "natural-gas/move/expc",
+   "natural-gas/move/poe2",
+   "natural-gas/sum/lsum"
+  ],
+  "must": [
+   "export"
+  ],
+  "prefer": [
+   "lng|liquefied",
+   "^u\\.s\\."
+  ],
+  "not": []
+ },
+ {
+  "k": "expTot",
+  "g": "gas",
+  "label": "Gas — total exports",
+  "freq": "monthly",
+  "id": "N9130US2",
+  "routes": [
+   "natural-gas/move/expc",
+   "natural-gas/sum/lsum"
+  ],
+  "must": [
+   "total",
+   "export"
+  ],
+  "prefer": [
+   "^u\\.s\\."
+  ],
+  "not": []
+ },
+ {
+  "k": "impTot",
+  "g": "gas",
+  "label": "Gas — total imports",
+  "freq": "monthly",
+  "id": "N9100US2",
+  "routes": [
+   "natural-gas/move/impc",
+   "natural-gas/sum/lsum"
+  ],
+  "must": [
+   "total",
+   "import"
+  ],
+  "prefer": [
+   "^u\\.s\\."
+  ],
+  "not": []
+ },
+ {
+  "k": "hhSpot",
+  "g": "gas",
+  "label": "Henry Hub spot",
+  "freq": "daily",
+  "id": "RNGWHHD",
+  "routes": [
+   "natural-gas/pri/fut"
+  ],
+  "must": [
+   "henry hub"
+  ],
+  "prefer": [
+   "spot"
+  ],
+  "not": []
+ },
+ {
+  "k": "crude",
+  "g": "oil",
+  "label": "Crude stocks, ex-SPR",
+  "freq": "weekly",
+  "id": "WCESTUS1",
+  "routes": [
+   "petroleum/stoc/wstk",
+   "petroleum/sum/sndw"
+  ],
+  "must": [
+   "ending stocks",
+   "crude oil"
+  ],
+  "prefer": [
+   "excluding spr",
+   "^u\\.s\\."
+  ],
+  "not": [
+   "\\bin spr\\b",
+   "cushing"
+  ]
+ },
+ {
+  "k": "spr",
+  "g": "oil",
+  "label": "SPR crude stocks",
+  "freq": "weekly",
+  "id": "WCSSTUS1",
+  "routes": [
+   "petroleum/stoc/wstk",
+   "petroleum/sum/sndw"
+  ],
+  "must": [
+   "ending stocks",
+   "spr"
+  ],
+  "prefer": [],
+  "not": [
+   "excluding"
+  ]
+ },
+ {
+  "k": "cushing",
+  "g": "oil",
+  "label": "Cushing crude stocks",
+  "freq": "weekly",
+  "id": "W_EPC0_SAX_YCUOK_MBBL",
+  "routes": [
+   "petroleum/stoc/wstk",
+   "petroleum/sum/sndw"
+  ],
+  "must": [
+   "cushing"
+  ],
+  "prefer": [
+   "stocks"
+  ],
+  "not": []
+ },
+ {
+  "k": "gaso",
+  "g": "oil",
+  "label": "Gasoline stocks",
+  "freq": "weekly",
+  "id": "WGTSTUS1",
+  "routes": [
+   "petroleum/stoc/wstk",
+   "petroleum/sum/sndw"
+  ],
+  "must": [
+   "ending stocks",
+   "gasoline"
+  ],
+  "prefer": [
+   "total gasoline",
+   "^u\\.s\\."
+  ],
+  "not": [
+   "blending|reformulated|conventional|component"
+  ]
+ },
+ {
+  "k": "dist",
+  "g": "oil",
+  "label": "Distillate stocks",
+  "freq": "weekly",
+  "id": "WDISTUS1",
+  "routes": [
+   "petroleum/stoc/wstk",
+   "petroleum/sum/sndw"
+  ],
+  "must": [
+   "ending stocks",
+   "distillate"
+  ],
+  "prefer": [
+   "total|^u\\.s\\."
+  ],
+  "not": [
+   "sulfur"
+  ]
+ },
+ {
+  "k": "jet",
+  "g": "oil",
+  "label": "Jet fuel stocks",
+  "freq": "weekly",
+  "id": "WKJSTUS1",
+  "routes": [
+   "petroleum/stoc/wstk",
+   "petroleum/sum/sndw"
+  ],
+  "must": [
+   "ending stocks",
+   "kerosene|jet"
+  ],
+  "prefer": [],
+  "not": []
+ },
+ {
+  "k": "prod",
+  "g": "oil",
+  "label": "Crude production",
+  "freq": "weekly",
+  "id": "WCRFPUS2",
+  "routes": [
+   "petroleum/sum/sndw",
+   "petroleum/crd/crpdn"
+  ],
+  "must": [
+   "production",
+   "crude"
+  ],
+  "prefer": [
+   "field",
+   "^u\\.s\\."
+  ],
+  "not": []
+ },
+ {
+  "k": "imp",
+  "g": "oil",
+  "label": "Crude imports",
+  "freq": "weekly",
+  "id": "WCEIMUS2",
+  "routes": [
+   "petroleum/sum/sndw",
+   "petroleum/move/wkly",
+   "petroleum/move/imp"
+  ],
+  "must": [
+   "import",
+   "crude"
+  ],
+  "prefer": [
+   "^u\\.s\\."
+  ],
+  "not": [
+   "spr|by country"
+  ]
+ },
+ {
+  "k": "exp",
+  "g": "oil",
+  "label": "Crude exports",
+  "freq": "weekly",
+  "id": "WCREXUS2",
+  "routes": [
+   "petroleum/sum/sndw",
+   "petroleum/move/wkly",
+   "petroleum/move/exp"
+  ],
+  "must": [
+   "export",
+   "crude"
+  ],
+  "prefer": [
+   "^u\\.s\\."
+  ],
+  "not": []
+ },
+ {
+  "k": "runs",
+  "g": "oil",
+  "label": "Refiner net crude input",
+  "freq": "weekly",
+  "id": "WCRRIUS2",
+  "routes": [
+   "petroleum/pnp/wiup",
+   "petroleum/sum/sndw",
+   "petroleum/pnp/inpt"
+  ],
+  "must": [
+   "(net input|gross input)"
+  ],
+  "prefer": [
+   "crude",
+   "^u\\.s\\."
+  ],
+  "not": []
+ },
+ {
+  "k": "util",
+  "g": "oil",
+  "label": "Refinery utilization",
+  "freq": "weekly",
+  "id": "WPULEUS3",
+  "routes": [
+   "petroleum/pnp/wiup",
+   "petroleum/sum/sndw"
+  ],
+  "must": [
+   "utilization"
+  ],
+  "prefer": [
+   "percent",
+   "^u\\.s\\."
+  ],
+  "not": []
+ },
+ {
+  "k": "demGaso",
+  "g": "oil",
+  "label": "Gasoline supplied",
+  "freq": "weekly",
+  "id": "WGFUPUS2",
+  "routes": [
+   "petroleum/cons/wpsup",
+   "petroleum/sum/sndw"
+  ],
+  "must": [
+   "product supplied",
+   "gasoline"
+  ],
+  "prefer": [
+   "finished",
+   "^u\\.s\\."
+  ],
+  "not": [
+   "blending|aviation|total petroleum"
+  ]
+ },
+ {
+  "k": "demDist",
+  "g": "oil",
+  "label": "Distillate supplied",
+  "freq": "weekly",
+  "id": "WDIUPUS2",
+  "routes": [
+   "petroleum/cons/wpsup",
+   "petroleum/sum/sndw"
+  ],
+  "must": [
+   "product supplied",
+   "distillate"
+  ],
+  "prefer": [],
+  "not": []
+ },
+ {
+  "k": "demJet",
+  "g": "oil",
+  "label": "Jet fuel supplied",
+  "freq": "weekly",
+  "id": "WKJUPUS2",
+  "routes": [
+   "petroleum/cons/wpsup",
+   "petroleum/sum/sndw"
+  ],
+  "must": [
+   "product supplied",
+   "kerosene|jet"
+  ],
+  "prefer": [],
+  "not": []
+ },
+ {
+  "k": "wti",
+  "g": "oil",
+  "label": "WTI Cushing spot",
+  "freq": "daily",
+  "id": "RWTC",
+  "routes": [
+   "petroleum/pri/spt"
+  ],
+  "must": [
+   "cushing|wti"
+  ],
+  "prefer": [
+   "spot",
+   "fob"
+  ],
+  "not": []
+ },
+ {
+  "k": "brent",
+  "g": "oil",
+  "label": "Brent spot",
+  "freq": "daily",
+  "id": "RBRTE",
+  "routes": [
+   "petroleum/pri/spt"
+  ],
+  "must": [
+   "brent"
+  ],
+  "prefer": [
+   "spot"
+  ],
+  "not": []
+ },
+ {
+  "k": "spotDist",
+  "g": "oil",
+  "label": "ULSD Gulf Coast spot",
+  "freq": "daily",
+  "id": "EER_EPD2DXL0_PF4_RGC_DPG",
+  "routes": [
+   "petroleum/pri/spt"
+  ],
+  "must": [
+   "gulf coast"
+  ],
+  "prefer": [
+   "ultra-?low sulfur|ulsd|no 2 diesel",
+   "spot"
+  ],
+  "not": [
+   "gasoline|kerosene"
+  ]
+ },
+ {
+  "k": "spotGaso",
+  "g": "oil",
+  "label": "Gasoline Gulf Coast spot",
+  "freq": "daily",
+  "id": "EER_EPMRU_PF4_RGC_DPG",
+  "routes": [
+   "petroleum/pri/spt"
+  ],
+  "must": [
+   "gulf coast",
+   "gasoline"
+  ],
+  "prefer": [
+   "regular|conventional",
+   "spot"
+  ],
+  "not": []
+ },
+ {
+  "k": "steoProd",
+  "g": "steo",
+  "label": "STEO dry gas production",
+  "freq": "monthly",
+  "id": "NGPRPUS",
+  "routes": [
+   "steo"
+  ],
+  "must": [
+   "dry",
+   "production"
+  ],
+  "prefer": [
+   "natural gas"
+  ],
+  "not": []
+ },
+ {
+  "k": "steoCons",
+  "g": "steo",
+  "label": "STEO gas consumption",
+  "freq": "monthly",
+  "id": "NGTCPUS",
+  "routes": [
+   "steo"
+  ],
+  "must": [
+   "total",
+   "consumption"
+  ],
+  "prefer": [
+   "natural gas"
+  ],
+  "not": []
+ },
+ {
+  "k": "steoLng",
+  "g": "steo",
+  "label": "STEO LNG exports",
+  "freq": "monthly",
+  "id": "NGEXPLNG",
+  "routes": [
+   "steo"
+  ],
+  "must": [
+   "lng|liquefied",
+   "export"
+  ],
+  "prefer": [],
+  "not": []
+ },
+ {
+  "k": "steoStor",
+  "g": "steo",
+  "label": "STEO end-of-month storage",
+  "freq": "monthly",
+  "id": "NGESPUS",
+  "routes": [
+   "steo"
+  ],
+  "must": [
+   "working gas"
+  ],
+  "prefer": [],
+  "not": [
+   "change",
+   "percent",
+   "_PCT"
+  ]
+ },
+ {
+  "k": "steoHdd",
+  "g": "steo",
+  "label": "STEO heating degree days",
+  "freq": "monthly",
+  "id": "ZWHD_NUS",
+  "routes": [
+   "steo"
+  ],
+  "must": [
+   "heating degree"
+  ],
+  "prefer": [
+   "u\\.s\\.|united states"
+  ],
+  "not": [
+   "change",
+   "normal",
+   "percent",
+   "_PCT"
+  ]
+ },
+ {
+  "k": "steoCdd",
+  "g": "steo",
+  "label": "STEO cooling degree days",
+  "freq": "monthly",
+  "id": "ZWCD_NUS",
+  "routes": [
+   "steo"
+  ],
+  "must": [
+   "cooling degree"
+  ],
+  "prefer": [
+   "u\\.s\\.|united states"
+  ],
+  "not": [
+   "change",
+   "normal",
+   "percent",
+   "_PCT"
+  ]
+ },
+ {
+  "k": "distProd",
+  "g": "oil",
+  "label": "Distillate production",
+  "freq": "weekly",
+  "id": "WDIRPUS2",
+  "routes": [
+   "petroleum/sum/sndw"
+  ],
+  "must": [
+   "production",
+   "distillate"
+  ],
+  "prefer": [
+   "^u\\.s\\.",
+   "refiner"
+  ],
+  "not": [
+   "blender only"
+  ]
+ },
+ {
+  "k": "gasoProd",
+  "g": "oil",
+  "label": "Gasoline production",
+  "freq": "weekly",
+  "id": "WGFRPUS2",
+  "routes": [
+   "petroleum/sum/sndw"
+  ],
+  "must": [
+   "production",
+   "gasoline"
+  ],
+  "prefer": [
+   "^u\\.s\\.",
+   "finished motor"
+  ],
+  "not": [
+   "blending components"
+  ]
+ },
+ {
+  "k": "distExp",
+  "g": "oil",
+  "label": "Distillate exports",
+  "freq": "weekly",
+  "id": "WDIEXUS2",
+  "routes": [
+   "petroleum/sum/sndw"
+  ],
+  "must": [
+   "export",
+   "distillate"
+  ],
+  "prefer": [
+   "^u\\.s\\."
+  ],
+  "not": []
+ },
+ {
+  "k": "gasoExp",
+  "g": "oil",
+  "label": "Gasoline exports",
+  "freq": "weekly",
+  "id": "WGTEXUS2",
+  "routes": [
+   "petroleum/sum/sndw"
+  ],
+  "must": [
+   "export",
+   "gasoline"
+  ],
+  "prefer": [
+   "^u\\.s\\.",
+   "total"
+  ],
+  "not": [
+   "blending|finished|reformulated|conventional"
+  ]
+ },
+ {
+  "k": "distImp",
+  "g": "oil",
+  "label": "Distillate imports",
+  "freq": "weekly",
+  "id": "WDIIMUS2",
+  "routes": [
+   "petroleum/sum/sndw"
+  ],
+  "must": [
+   "import",
+   "distillate"
+  ],
+  "prefer": [
+   "^u\\.s\\."
+  ],
+  "not": [
+   "from|padd"
+  ]
+ },
+ {
+  "k": "gasoImp",
+  "g": "oil",
+  "label": "Gasoline imports",
+  "freq": "weekly",
+  "id": "WGTIMUS2",
+  "routes": [
+   "petroleum/sum/sndw"
+  ],
+  "must": [
+   "import",
+   "gasoline"
+  ],
+  "prefer": [
+   "^u\\.s\\.",
+   "total"
+  ],
+  "not": [
+   "blending|finished|reformulated|conventional|from|padd"
+  ]
+ }
+]

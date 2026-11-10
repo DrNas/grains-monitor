@@ -23,9 +23,10 @@ const SOURCES = [
   ['crop_progress', 'Crop progress & condition', {py: 'pipelines/crop_progress/run.py', file: true}],
   ['wasde', 'WASDE balance sheets', {py: 'pipelines/wasde/run.py', file: true}],
   ['export_sales', 'Export sales & inspections', {py: 'pipelines/export_sales/run.py', file: true}],
+  ['energy', 'Energy (EIA)', {py: 'pipelines/energy/run.py', file: true}],
 ];
 // what gets published besides the data: the home page, shared assets and one folder per desk
-const SITE = ['index.html', 'assets', 'grains'];
+const SITE = ['index.html', 'assets', 'grains', 'energy'];
 
 // Runs a Python pipeline with the build's environment (keys included) and parses the JSON it prints.
 function runPy(script, cache, timeoutMin = 25) {

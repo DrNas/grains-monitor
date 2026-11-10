@@ -75,6 +75,7 @@ footer a{color:inherit}
 nav.desks a{padding:1px 8px;border-radius:6px;border:1px solid transparent}
 nav.desks a.on{color:var(--text);border-color:var(--border);background:var(--card)}
 .dct{display:flex;align-items:center;gap:8px}
+html[data-desk] .card a{color:var(--blue);text-decoration:none} html[data-desk] .card a:hover{text-decoration:underline}
 .xbtn{font-size:10.5px;padding:0 7px;color:var(--muted)}
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:6px 0}
 .tile{background:var(--sunk);border:1px solid var(--border);border-radius:6px;padding:6px 9px;min-width:0}
