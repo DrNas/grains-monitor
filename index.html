@@ -52,7 +52,7 @@
   <div class="hrow">
     <h1>Grains &amp; Livestock Monitor</h1>
     <nav class="desks"><a href="./" class="on">Home</a><a href="positioning/">Positioning</a><a href="grains/">Grains</a><a href="energy/">Energy</a><a href="macro/">Macro</a></nav>
-    <nav><a href="#recap">Recap</a><a href="#cal">Calendar</a><a href="#cot">Positioning</a><a href="#meat">Livestock</a><a href="#basis">Basis</a><a href="#wx">Weather</a><a href="#drought">Drought &amp; ENSO</a></nav>
+    <nav><a href="#recap">Recap</a><a href="#week">This week</a><a href="#cal">Calendar</a><a href="#cot">Positioning</a><a href="#meat">Livestock</a><a href="#basis">Basis</a><a href="#wx">Weather</a><a href="#drought">Drought &amp; ENSO</a></nav>
     <span class="sp"></span>
     <span class="muted" id="stamp">loading…</span>
   </div>
@@ -68,6 +68,11 @@
       <div class="card"><div class="ct">At a glance</div><div class="cs">Written from this page's own data at each build: what changed and what's next.</div><ul class="glance" id="glance"></ul></div>
       <div class="card vr" id="video"></div>
     </div>
+  </section>
+
+  <section id="week">
+    <h2>What changed this week</h2>
+    <div id="week-card"></div>
   </section>
 
   <section id="cal">
@@ -601,5 +606,7 @@ async function boot() {
 }
 boot();
 </script>
+<script src="assets/desk.js"></script>
+<script src="assets/changes.js"></script>
 </body>
 </html>
