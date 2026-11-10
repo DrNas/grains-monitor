@@ -4,3 +4,4 @@ node_modules/
 _source/
 __pycache__/
 *.pyc
+.work/

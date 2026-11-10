@@ -353,6 +353,15 @@ def product(sym, nm, stk, dem, prod, imp, exp, spot):
             "crack": tail(daily_crack), "crack_seasonal": seasonal_chart(wk(daily_crack), 2) if len(daily_crack) > 400 else None}
 
 
+def futures_curves():
+    """WTI and Henry Hub futures curves written earlier in the build by pipelines/prices (Yahoo), if present."""
+    p = Path(os.environ.get("PRICES_DIR") or Path(__file__).resolve().parents[2] / ".work" / "prices") / "curves.json"
+    try:
+        return json.loads(p.read_text()).get("curves", {})
+    except Exception:
+        return {}
+
+
 def quality(f):
     r2, wf = f.get("r2") or 0, (f.get("walk_forward") or {})
     return ("usable: inventories explain much of the price and gaps have closed" if r2 >= 0.5 and wf.get("corr_gap_next", 0) < -0.15 else
@@ -418,6 +427,10 @@ def main():
             log(sym, "FAILED", e)
     if not markets:
         raise SystemExit("every energy market failed: " + "; ".join(errors))
+    cv = futures_curves()
+    for sym in ("NG", "CL"):
+        if sym in markets and cv.get(sym):
+            markets[sym]["curve"] = cv[sym]
     freshness = [{"k": sp["k"], "label": sp["label"], "freq": sp["freq"], "last": SER[sp["k"]][-1][0] if SER[sp["k"]] else None} for sp in SPECS]
     dates = [M["stocks"]["date"] for M in markets.values()]
     note = "; ".join(errors + ([f"EIA series not found: {', '.join(missing)}"] if missing else []))

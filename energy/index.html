@@ -27,7 +27,7 @@
 'use strict';
 const D = Desk, {fmtN, fmtS, cls, esc} = D;
 D.header('Energy');
-D.footer('U.S. Energy Information Administration: Weekly Natural Gas Storage Report, Weekly Petroleum Status Report, Natural Gas Monthly, Short-Term Energy Outlook, spot prices');
+D.footer('U.S. Energy Information Administration: Weekly Natural Gas Storage Report, Weekly Petroleum Status Report, Natural Gas Monthly, Short-Term Energy Outlook, spot prices; NYMEX futures curves via Yahoo Finance (delayed)');
 
 const MKTS = [['NG', 'Natural gas'], ['CL', 'Crude oil'], ['HO', 'Distillate'], ['RB', 'Gasoline']];
 let E = null, mkt = D.restore('energy_mkt', 'NG');
@@ -89,7 +89,7 @@ function fairCard(M) {
   const f = M.fair;
   if (!f) {
     if (M.name === 'WTI crude') add(D.card({title: 'Inventory fair value: WTI 1st–2nd month spread', entry: E,
-      body: `<p class="note">This model needs NYMEX futures settlements, which EIA stopped publishing in April 2024. It comes back when the desk's futures price feed is added.${M.fair_outright ? ` For reference: U.S. crude days of supply explain only R² ${fmtN(M.fair_outright.r2, 2)} of the outright WTI price over ${M.fair_outright.window_weeks} weeks, so outright crude is a global story.` : ''}</p>`}));
+      body: `<p class="note">This model needs a long history of the 1st and 2nd month WTI contracts. EIA stopped publishing NYMEX settlements in April 2024, and the free price feed only carries the front month's history, so the spread model is not run; the curve card shows today's spreads.${M.fair_outright ? ` For reference: U.S. crude days of supply explain only R² ${fmtN(M.fair_outright.r2, 2)} of the outright WTI price over ${M.fair_outright.window_weeks} weeks, so outright crude is a global story.` : ''}</p>`}));
     return;
   }
   const id = `c-fair-${mkt}`, sid = `c-fsc-${mkt}`, wf = f.walk_forward;
@@ -104,6 +104,14 @@ function fairCard(M) {
       {label: 'inventory fair value', data: f.series.map(r => r[2]), borderColor: C('--text'), borderDash: [4, 3], borderWidth: 1.2, pointRadius: 0}]},
       options: {plugins: {crosshair: {x: i => day(f.series[Math.round(i)]?.[0]), y: {y: v => fmtN(v, 2)}}},
         scales: {x: {ticks: {maxRotation: 0, autoSkip: true, maxTicksLimit: 7, callback(v) { return mon(this.getLabelForValue(v)); }}}, y: {title: {display: true, text: f.unit}}}}}), true);
+}
+function curveCard(id, title, cv, unit, sub) {
+  if (!cv?.length) return;
+  const sp = cv.length > 1 ? cv[1].v - cv[0].v : null;
+  add(D.card({title, sub: sub + (D.ok(sp) ? ` First spread ${esc(cv[0].m)}/${esc(cv[1].m)}: ${fmtS(sp, 3)} (${sp > 0 ? 'contango' : 'backwardation'}).` : ''), src: 'NYMEX via Yahoo Finance', asof: cv[0].d, exp: id,
+    body: `<div class="cb"><canvas id="${id}"></canvas></div>`}), () =>
+    D.chart(id, {type: 'line', data: {labels: cv.map(c => c.m), datasets: [{label: unit, data: cv.map(c => c.v), borderColor: C('--orange'), borderWidth: 2, pointRadius: 3}]},
+      options: {plugins: {legend: {display: false}, crosshair: {x: i => cv[Math.round(i)]?.m || '', y: {y: v => fmtN(v, 3)}}}, scales: {y: {title: {display: true, text: unit}}}}}));
 }
 function tableCard(title, cols, rows, opts = {}) { add(D.card({title, entry: E, ...opts, body: D.table(cols, rows)})); }
 
@@ -148,6 +156,7 @@ function renderMarket() {
     lines('c-ng-steo', 'Short-Term Energy Outlook: supply and demand', [{label: 'dry production', data: M.steo.steoProd, color: '--orange'}, {label: 'consumption', data: M.steo.steoCons, color: '--blue'},
       {label: 'LNG exports', data: M.steo.steoLng, color: '--green', axis: 'y1'}], 'Bcf/d', {sub: `EIA STEO history and forecast${steoEnd ? ` (forecast through ${mon(steoEnd)})` : ''}; right axis: LNG exports.`, digits: 1, asof: E.latest});
     lines('c-ng-hh', 'Henry Hub spot', [{label: 'Henry Hub', data: M.prices.hh, color: '--orange'}], '$/MMBtu');
+    curveCard('c-ng-cv', 'Natural gas futures curve', M.curve, '$/MMBtu', 'NYMEX Henry Hub futures by delivery month (Yahoo Finance, delayed). Winter months over summer = the market paying for storage.');
   } else if (mkt === 'CL') {
     add(D.card({title: 'U.S. crude inventories', entry: E, asof: st.date, body: D.tiles([
       {label: `Commercial (ex-SPR), week to ${D.dLabel(st.date, {month: 'short', day: 'numeric'})}`, value: fmtN(st.value, 1) + ' mb', sub: `${fmtS(st.wow, 1)} on the week`},
@@ -161,6 +170,7 @@ function renderMarket() {
     fairCard(M);
     balanceCard('Weekly crude balance', M.balance, M.balance_unit);
     lines('c-cl-px', 'Crude spot: WTI and Brent', [{label: 'WTI Cushing', data: M.prices.wti, color: '--orange'}, {label: 'Brent', data: M.prices.brent, color: '--blue'}], '$/bbl');
+    curveCard('c-cl-cv', 'WTI futures curve', M.curve, '$/bbl', 'NYMEX WTI by delivery month (Yahoo Finance, delayed). Downward sloping (backwardation) = tight prompt supply; upward (contango) = ample stocks.');
     lines('c-cl-wb', 'WTI–Brent', [{label: 'WTI minus Brent', data: M.prices.wti_brent, color: '--orange'}], '$/bbl', {sub: 'A wider discount pulls more U.S. crude into exports.'});
   } else {
     const short = M.name.split(' / ')[1];

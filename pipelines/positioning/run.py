@@ -88,18 +88,65 @@ def latest_report():
     return (r.json() or [{}])[0].get("d", "")[:10]
 
 
+def from_series(folder):
+    """Rebuild the COT table from the previous build's per-market history files (they hold every report, crop year and
+    trader category), so a week with no new CFTC report can be recomputed with fresh prices without downloading the
+    whole history again. The CIT part is returned too but not used: CIT is aligned to COT dates in those files, so
+    the small CIT report is fetched fresh instead."""
+    cot, cit = [], []
+    cats = ["managed_money", "swap_dealers", "prod_merc", "other_rept"]
+    meta = {m["ticker"]: (n, m) for n, m in cftc.BCOM.items()}
+    citn = {m["ticker"]: n for n, m in cftc.CIT_MARKETS.items()}
+    for f in sorted(Path(folder).glob("*.json")):
+        s = json.loads(f.read_text())
+        if s.get("ticker") not in meta:
+            continue
+        name, m = meta[s["ticker"]]
+        for ct, b in s["ct"].items():
+            for i, d in enumerate(s["dates"]):
+                if b["oi"][i] is None:
+                    continue
+                row = {"date": d, "commodity": name, "ticker": s["ticker"], "sector": m["sector"], "crop_type": ct, "is_crop": m["crop"], "open_interest": b["oi"][i]}
+                for c in cats:
+                    for k, col in (("l", "long"), ("s", "short"), ("sp", "spread"), ("tl", "traders_long"), ("ts", "traders_short")):
+                        row[f"{c}_{col}"] = b[c][k][i] or 0
+                cot.append(row)
+        c = s.get("cit")
+        if c and s["ticker"] in citn:
+            for i, d in enumerate(s["dates"]):
+                if c["l"][i] is None:
+                    continue
+                oi, L, S = c["oi"][i] or 0, c["l"][i], c["s"][i] or 0
+                cit.append({"date": d, "commodity": citn[s["ticker"]], "ticker": s["ticker"], "sector": cftc.CIT_MARKETS[citn[s["ticker"]]]["sector"],
+                            "open_interest": oi, "cit_long": L, "cit_short": S, "cit_net": L - S,
+                            "cit_traders_long": c["tl"][i] or 0, "cit_traders_short": c["ts"][i] or 0,
+                            "cit_net_pct_oi": round((L - S) / oi * 100, 3) if oi else 0.0,
+                            "noncomm_long": c["ncl"][i], "noncomm_short": c["ncs"][i], "comm_long": c["cml"][i], "comm_short": c["cms"][i],
+                            "nonrept_long": c["nrl"][i], "nonrept_short": c["nrs"][i]})
+    return pd.DataFrame(cot), pd.DataFrame(cit)
+
+
 def main():
     notes = []
-    prev = os.environ.get("PREV_LATEST", "")
-    if not FIXTURE and prev and not os.environ.get("FORCE"):
+    prev, prev_files = os.environ.get("PREV_LATEST", ""), os.environ.get("PREV_FILES_DIR")
+    rebuilt = False
+    if not FIXTURE and prev and prev_files and not os.environ.get("FORCE"):
         try:
             if latest_report() == prev:
-                print(json.dumps({"reuse": True, "note": ""}))
-                log(f"CFTC has nothing after {prev}: reusing the previous build")
-                return
+                cot, _ = from_series(prev_files)   # the CIT report is small: always fetched fresh (below)
+                rebuilt = not cot.empty
+                log(f"CFTC has nothing after {prev}: recomputing from the previous build's history ({len(cot)} rows) with today's prices")
         except Exception as e:
-            log("could not check the latest report date:", e)
-    if FIXTURE:
+            log("could not reuse the previous history:", e)
+    if rebuilt:
+        try:
+            cit, miss = fetch_cit()
+            if miss:
+                notes.append("CIT not returned: " + ", ".join(miss))
+        except Exception as e:
+            cit = pd.DataFrame()
+            notes.append(f"CIT report failed ({str(e)[:80]})")
+    elif FIXTURE:
         cot = pd.read_csv(Path(FIXTURE) / "bcom_cot_master.csv", low_memory=False)
         cot = cot[[c for c in cot.columns if not c.startswith("pctile_")]]
         cit = pd.read_csv(Path(FIXTURE) / "cit_master.csv", dtype={"date": str})

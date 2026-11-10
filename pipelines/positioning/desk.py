@@ -3,11 +3,12 @@ and 4-week changes, flow z-score, COT index, percentiles over 1/3/5/10 years and
 percentile heatmap, index-trader (CIT) flows and breadth, and a weekly history file per market.
 Adapted, with permission, from an existing open-source pipeline; the calculations are unchanged.
 
-Price-based parts (trigger levels, dollar exposure, technicals) need the desk's futures price pipeline and are
-skipped until it exists: load_prices() returns nothing, which the source already handles.
+Price-based parts (technicals, trigger levels, dollar exposure, carry, risk regime) read the futures prices written
+earlier in the same build by pipelines/prices; without them they are left out, as in the source.
 """
 import json
 import math
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -348,9 +349,22 @@ def cit_aggregate(cit, rd, snaps):
 ROLL_ADJUST = {"C", "S", "SM", "BO", "W", "KW", "SB", "KC", "CC", "CT", "LC", "LH", "NG"}
 
 
+PRICES_DIR = Path(os.environ.get("PRICES_DIR") or Path(__file__).resolve().parents[2] / ".work" / "prices")
+
+
 def load_prices():
-    """Futures prices: not wired yet (the desk's price pipeline comes later). Price-based parts are skipped."""
-    return {}, {}, {}
+    """Futures prices written earlier in the same build by pipelines/prices (the source's file layout).
+    Missing files (the price source failed) leave the price-based parts out, as the source does."""
+    daily, rep_p, front = PRICES_DIR / "daily.csv", PRICES_DIR / "report.json", PRICES_DIR / "front_contract.csv"
+    if not daily.exists():
+        return {}, {}, {}
+    p = pd.read_csv(daily, parse_dates=["date"])
+    rep = json.loads(rep_p.read_text()) if rep_p.exists() else {}
+    fr = {}
+    if front.exists():
+        f = pd.read_csv(front, parse_dates=["date"])
+        fr = {tk: g.set_index("date").sort_index() for tk, g in f.groupby("ticker")}
+    return {tk: g.set_index("date").sort_index() for tk, g in p.groupby("ticker")}, rep, fr
 
 
 def back_adjust(close, ticker):

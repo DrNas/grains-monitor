@@ -17,7 +17,7 @@
   </section>
   <section id="rates">
     <h2>Rates &amp; policy</h2>
-    <p class="sub">New York Fed reference rates (published 8am ET for the previous day) and the U.S. Treasury daily par yield curve (after the close). Futures-implied policy paths need futures prices and come later.</p>
+    <p class="sub">New York Fed reference rates (published 8am ET for the previous day), the U.S. Treasury daily par yield curve (after the close), and the policy path priced by fed funds and SOFR futures.</p>
     <div id="rate-tiles"></div>
     <div class="grid g2" id="rate-grid"></div>
   </section>
@@ -37,7 +37,7 @@
 'use strict';
 const D = Desk, {fmtN, fmtS, cls, esc} = D;
 D.header('Macro');
-D.footer('BLS; BEA and University of Michigan via DBnomics; Federal Reserve Bank of New York; U.S. Treasury (daily par and real yield curves, Daily Treasury Statement, Monthly Statement of the Public Debt, auction results)');
+D.footer('BLS; BEA and University of Michigan via DBnomics; Federal Reserve Bank of New York; U.S. Treasury (daily par and real yield curves, Daily Treasury Statement, Monthly Statement of the Public Debt, auction results); CME fed funds and SOFR futures via Yahoo Finance (delayed)');
 
 let M = null;
 const C = n => D.css(n);
@@ -92,6 +92,18 @@ function render() {
       D.chart('c-2s10s', {type: 'line', data: {labels: s.map(p => p[0]), datasets: [{label: '2s10s (bp)', data: s.map(p => p[1]), borderColor: C('--orange'), borderWidth: 1.6, pointRadius: 0}]},
         options: {plugins: {legend: {display: false}, crosshair: {x: i => D.dLabel(s[Math.round(i)]?.[0]), y: {y: v => fmtN(v, 0) + ' bp'}}}, scales: {x: xDate(), y: {title: {display: true, text: 'bp'}}}}})]);
   }
+  const pol = d.policy;
+  if (pol?.zq?.length || pol?.sr3?.length) rc.unshift([D.card({title: 'Policy path priced by futures', src: 'CME fed funds (ZQ) and 3-month SOFR (SR3) futures via Yahoo Finance (delayed)', asof: (pol.zq[0] || pol.sr3[0]).d, exp: 'c-path',
+    sub: 'Implied rate = 100 − futures price. Fed funds futures settle on the month\'s average effective rate; SOFR futures on the average over the three months from the contract month. Dashed: today\'s effective fed funds rate.',
+    body: '<div class="cb"><canvas id="c-path"></canvas></div>' + (pol.zq?.length ? D.table([{h: 'Month', f: x => esc(x.m)}, {h: 'Fed funds futures', n: 1, f: x => pc(x.rate, 3)}, {h: 'vs effective now', n: 1, f: x => bp(x.vs_effr_bp)}], pol.zq) : '')}), () => {
+    const labels = [...new Set([...(pol.zq || []).map(x => x.m), ...(pol.sr3 || []).map(x => x.m)])];
+    const byM = (a) => labels.map(l => (a || []).find(x => x.m === l)?.rate ?? null);
+    D.chart('c-path', {type: 'line', data: {labels, datasets: [
+      {label: 'fed funds futures', data: byM(pol.zq), borderColor: C('--orange'), borderWidth: 2, pointRadius: 3, spanGaps: true},
+      {label: '3-month SOFR futures', data: byM(pol.sr3), borderColor: C('--blue'), borderWidth: 1.5, pointRadius: 3, spanGaps: true, showLine: true},
+      {label: 'effective fed funds today', data: labels.map(() => rt.effr ?? null), borderColor: C('--text'), borderDash: [4, 3], borderWidth: 1, pointRadius: 0}]},
+      options: {plugins: {crosshair: {x: i => labels[Math.round(i)] || '', y: {y: v => fmtN(v, 2) + '%'}}}, scales: {y: {title: {display: true, text: '%'}}}}});
+  }]);
   document.getElementById('rate-grid').innerHTML = rc.map(c => c[0]).join('') || '<p class="note">No rates data in this build.</p>';
   rc.forEach(c => c[1]());
 

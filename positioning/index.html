@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Positioning Desk</title>
-<meta name="description" content="Positioning desk: CFTC Commitments of Traders for the Bloomberg Commodity Index markets, with a weekly desk brief, positioning monitor, contrarian setups, percentile heatmap, index-trader (CIT) flows, scatter and seasonality.">
+<meta name="description" content="Positioning desk: CFTC Commitments of Traders for the Bloomberg Commodity Index markets, with a weekly desk brief, systematic trade ideas, positioning monitor, trigger levels, dollar flows, percentile heatmap, index-trader (CIT) flows, scatter and seasonality.">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link rel="stylesheet" href="../assets/site.css">
 <style>
@@ -33,11 +33,26 @@ table.heat td.h{padding:0;width:18px;height:18px}
     <div class="grid g2"><div id="brief-card"></div><div id="setup-card"></div></div>
   </section>
 
+  <section id="ideas">
+    <h2>Trade ideas</h2>
+    <p class="sub">Systematic rules, research first and positioning second: trend (12-month return confirmed by 6-month and the 200-day), carry (front vs the same month next year), inverse-volatility size, halved in an equity risk-off regime; crowded positioning cuts trend trades in half, and contrarian setups become ideas only once price confirms. Stops 2×ATR, targets 2R. A systematic read, not advice.</p>
+    <div id="regime"></div>
+    <div class="grid g2"><div id="idea-card"></div><div id="watch-card"></div></div>
+    <div id="board-card" style="margin-top:10px"></div>
+  </section>
+
   <section id="monitor">
     <h2>Positioning monitor</h2>
     <p class="sub">Every market ranked by setup score (−100 to +100): crowding by COT index, commercial positioning, and whether fund flow has started to turn. Click a market for its history.</p>
     <div id="mon-card"></div>
     <div class="grid g2" style="margin-top:10px"><div id="sector-card"></div><div id="scatter-card"></div></div>
+  </section>
+
+  <section id="triggers">
+    <h2>Triggers &amp; flows</h2>
+    <p class="sub">Price levels where the technical signals trend-following funds react to would flip, on the tradable contract, with the distance in percent and in average true ranges (ATR); and fund positioning in dollars at today's price.</p>
+    <div id="trig-card"></div>
+    <div id="usd-card" style="margin-top:10px"></div>
   </section>
 
   <section id="heat-sec">
@@ -63,9 +78,9 @@ table.heat td.h{padding:0;width:18px;height:18px}
 'use strict';
 const D = Desk, {fmtN, fmtS, cls, esc} = D, CI = COTInsights;
 D.header('Positioning');
-D.footer('CFTC Commitments of Traders, disaggregated, futures and options combined; CFTC Supplemental (Commodity Index Traders)');
+D.footer('CFTC Commitments of Traders, disaggregated, futures and options combined; CFTC Supplemental (Commodity Index Traders); futures prices from Yahoo Finance (delayed)');
 
-let P = null, SNAP = null, win = D.restore('pos_win', 'y3'), crop = D.restore('pos_crop', 'all'), A = null, sel = D.restore('pos_mkt', 'C');
+let P = null, SNAP = null, PX = {}, win = D.restore('pos_win', 'y3'), crop = D.restore('pos_crop', 'all'), A = null, sel = D.restore('pos_mkt', 'C');
 const SERIES = {};
 const k = CI.k, sk = CI.sk, ord = CI.ord;
 const tone = t => `tone-${t}`;
@@ -92,11 +107,65 @@ function renderBrief() {
       ${list('Spec / commercial divergence', 'flat', A.divergences, r => r.comm.tone === 'bull' ? 'bullish' : 'bearish')}</div>`});
 }
 
+// ---- trade ideas (the source's rules, COTInsights.ideas)
+function renderIdeas() {
+  const has = (SNAP.commodities || []).some(c => c.px);
+  if (!has) { document.getElementById('idea-card').innerHTML = D.card({title: 'Trade ideas', body: '<p class="note">No futures prices in this build, so no ideas this time.</p>'}); return; }
+  const I = CI.ideas(SNAP, A), X = CI.pxf, Pc = CI.pctf, g = I.regime || {};
+  document.getElementById('regime').innerHTML = g.spx ? D.tiles([
+    {label: 'Risk regime', value: `<span class="${I.riskOff ? 'dn' : 'up'}">${I.riskOff ? 'Risk-off' : 'Normal'}</span>`, sub: I.riskOff ? 'sizes halved' : 'full sizes'},
+    {label: 'S&P 500', value: fmtN(g.spx, 0), sub: `${g.spx_above_200d ? 'above' : 'below'} its 200-day (${fmtN(g.spx_200d, 0)})`},
+    {label: 'VIX', value: fmtN(g.vix, 1), sub: 'risk-off when the S&P is below its 200-day and VIX is over 25'},
+    {label: 'Ideas', value: `${I.ideas.length} active`, sub: `${I.watch.length} on watch, ${I.flat.length} flat`}]) : '';
+  const card = i => { const r = i.row, l = i.lv; return `<div class="tile" style="margin-bottom:8px"><div class="dct"><b class="${i.dir > 0 ? 'tone-bull' : 'tone-bear'}">${esc(i.side)}</b> <a href="#detail" data-mkt="${r.ticker}">${esc(r.name)}</a><span class="sp"></span><span class="cs">${esc(i.kind)} · ${esc(i.conv)}${i.riskShare != null && i.conv !== 'Watch' ? ` · ${Math.round(i.riskShare * 100)}% of risk budget` : ''}</span></div>
+    ${l ? `<div class="cs" style="margin:4px 0">Ref ${esc(r.px.contract || '')} <b>${X(l.entry)}</b> · stop (2×ATR) <b>${X(l.stop)}</b> (${Pc(l.stopPct)}) · target (2R) <b>${X(l.target)}</b> (${Pc(l.tgtPct)}) · size ${r.size >= 1 ? 'full' : r.size >= 0.5 ? 'half' : 'small'}</div>` : ''}
+    <ul style="margin:4px 0;padding-left:18px;font-size:12px">${i.why.map(w => `<li>${w}</li>`).join('')}</ul><div class="cs">${i.timing}</div>${r.px.note ? `<div class="cs">Note: ${esc(r.px.note)}</div>` : ''}</div>`; };
+  document.getElementById('idea-card').innerHTML = D.card({title: 'Active ideas', entry: P, asof: A.date, sub: `Prices ${esc(I.pricesAt || '')} · COT ${D.dLabel(A.date)}`, body: I.ideas.length ? I.ideas.map(card).join('') : '<p class="note">No market passes the rules this week.</p>'});
+  document.getElementById('watch-card').innerHTML = D.card({title: 'Watchlist: positioning setups waiting for price', entry: P, asof: A.date, body: I.watch.length ? I.watch.map(card).join('') : '<p class="note">None this week.</p>'});
+  const tr = t => t === 1 ? '<span class="up">▲ up</span>' : t === 0.5 ? '<span class="up">△ up (partial)</span>' : t === -1 ? '<span class="dn">▼ down</span>' : t === -0.5 ? '<span class="dn">▽ down (partial)</span>' : '<span class="muted">— none</span>';
+  const pc = v => v == null ? '—' : `<span class="${cls(v)}">${Pc(v)}</span>`;
+  document.getElementById('board-card').innerHTML = D.card({title: 'Scorecard: every market', entry: P, asof: A.date,
+    sub: 'Carry marked * is on a seasonal curve (gas, cattle, hogs), where it is unreliable and ignored by the rules.',
+    body: D.table([{h: 'Market', f: r => `<a href="#detail" data-mkt="${r.ticker}">${esc(r.name)}</a>`}, {h: 'Last', n: 1, f: r => `${X(r.px.close)}${r.px.contract ? ` <span class="muted">${esc(r.px.contract)}</span>` : ''}`},
+      {h: '1w', n: 1, f: r => pc(r.px.r1w)}, {h: '4w', n: 1, f: r => pc(r.px.r4w)}, {h: '6m', n: 1, f: r => pc(r.px.r26w)}, {h: '12m', n: 1, f: r => pc(r.px.r52w)},
+      {h: 'vs 200d', n: 1, f: r => pc(r.px.vs200)}, {h: 'RSI', n: 1, f: r => r.px.rsi == null ? '—' : fmtN(r.px.rsi, 0)}, {h: 'Trend', f: r => tr(r.trend)},
+      {h: 'Carry /yr', n: 1, f: r => r.carry == null ? '—' : `<span title="${esc(r.cTxt || '')}">${Pc(r.carry)}${r.px.carry?.seasonal ? '*' : ''}</span>`}, {h: 'Rule', f: r => esc(r.rule)},
+      {h: 'COT idx', n: 1, f: r => fmtN(r.cot, 0)}, {h: 'Vol (60d)', n: 1, f: r => r.vol ? fmtN(r.vol * 100, 0) + '%' : '—'},
+      {h: 'Size', n: 1, f: r => r.size > 0 ? `<span class="${r.dir > 0 ? 'up' : 'dn'}">${r.dir > 0 ? 'L' : 'S'} ${Math.round(r.size * 100)}%</span>` : '—'},
+      {h: '52-wk range', n: 1, f: r => r.px.rng52 == null ? '—' : fmtN(r.px.rng52, 0) + '%'}],
+      I.board.slice().sort((a, b) => b.size * b.dir - a.size * a.dir || b.trend - a.trend))});
+}
+
+// ---- triggers and dollar flows
+function renderTriggers() {
+  const X = CI.pxf, rows = (SNAP.commodities || []).filter(c => c.trig && !c.stale);
+  if (!rows.length) { document.getElementById('trig-card').innerHTML = D.card({title: 'Trigger levels', body: '<p class="note">No futures prices in this build.</p>'}); document.getElementById('usd-card').innerHTML = ''; return; }
+  const st = v => v === 1 ? '<span class="up">▲</span>' : v === -1 ? '<span class="dn">▼</span>' : '<span class="muted">·</span>';
+  const lvl = (t, k) => st((t.lv.find(x => x.k === k) || {}).state);
+  const pct3 = c => { const r = A.rows.find(x => x.ticker === c.ticker); return r ? fmtN(r.mm.p.N.y3, 0) : '—'; };
+  const nx = n => n ? `${X(n.lvl)} <span class="muted">${esc(n.name)}</span>` : '—';
+  const dist = n => n ? `${CI.pctf(n.pct)} · ${fmtS(n.atr, 1)} ATR` : '';
+  document.getElementById('trig-card').innerHTML = D.card({title: 'Signal state and the next flip level each way', entry: P, asof: rows[0].trig.date,
+    sub: '▲ long signal, ▼ short signal for 20/55/100-day breakouts, 50/100/200-day averages and MACD.',
+    body: D.table([{h: 'Market', f: c => `<a href="#detail" data-mkt="${c.ticker}">${esc(c.name)}</a>`}, {h: 'Contract', f: c => esc(c.trig.src)}, {h: 'Last', n: 1, f: c => X(c.trig.close)},
+      {h: 'Fund %ile 3y', n: 1, f: pct3}, {h: '20d', f: c => lvl(c.trig, 'd20')}, {h: '55d', f: c => lvl(c.trig, 'd55')}, {h: '100d', f: c => lvl(c.trig, 'd100')},
+      {h: '50 avg', f: c => lvl(c.trig, 's50')}, {h: '100 avg', f: c => lvl(c.trig, 's100')}, {h: '200 avg', f: c => lvl(c.trig, 's200')}, {h: 'MACD', f: c => st(c.trig.macd)},
+      {h: 'Next level down', f: c => nx(c.trig.next_dn)}, {h: 'Dist.', n: 1, f: c => dist(c.trig.next_dn)}, {h: 'Next level up', f: c => nx(c.trig.next_up)}, {h: 'Dist.', n: 1, f: c => dist(c.trig.next_up)}], rows)});
+  const mu = SNAP.mm_usd;
+  const usd = v => v == null ? '—' : `${v < 0 ? '−' : ''}$${Math.abs(v) >= 1e9 ? fmtN(Math.abs(v) / 1e9, 2) + 'bn' : fmtN(Math.abs(v) / 1e6, 0) + 'm'}`;
+  document.getElementById('usd-card').innerHTML = mu ? D.card({title: `Managed money in dollars: net ${usd(mu.total.Nusd)} (w/w ${usd(mu.total.dNusd)})`, entry: P, asof: A.date,
+    sub: 'Contracts × contract size × today\'s front-month price. ' + Object.entries(mu.sectors).map(([k, v]) => `${esc(k)} ${usd(v.Nusd)} (w/w ${usd(v.dNusd)})`).join(' · '),
+    body: D.table([{h: 'Market', f: m => `<a href="#detail" data-mkt="${m.ticker}">${esc(m.name)}</a>`}, {h: 'Net (lots)', n: 1, f: m => k(m.N)}, {h: 'w/w (lots)', n: 1, f: m => `<span class="${cls(m.dN)}">${sk(m.dN)}</span>`},
+      {h: 'Net ($)', n: 1, f: m => usd(m.Nusd)}, {h: 'w/w ($)', n: 1, f: m => `<span class="${cls(m.dNusd)}">${usd(m.dNusd)}</span>`}, {h: '4 weeks ($)', n: 1, f: m => `<span class="${cls(m.dN4usd)}">${usd(m.dN4usd)}</span>`},
+      {h: 'Long ($)', n: 1, f: m => usd(m.Lusd)}, {h: 'Short ($)', n: 1, f: m => usd(m.Susd)}], mu.markets.slice().sort((a, b) => (b.Nusd || 0) - (a.Nusd || 0)))}) : '';
+}
+
 function renderMonitor() {
   const rows = A.rows.slice().sort((a, b) => b.score - a.score);
   document.getElementById('mon-card').innerHTML = D.card({title: `Managed money, ${CI.WIN_LBL[win]} look-back${crop !== 'all' ? (crop === 'old' ? ', old crop' : ', new crop') : ''}`, entry: P, asof: A.date,
     body: D.table([
       {h: 'Market', f: r => `<a href="#detail" data-mkt="${r.ticker}">${esc(r.name)}</a>`},
+      {h: 'Px 4w', n: 1, f: r => { const p = PX[r.ticker]; return p?.r4w == null ? '—' : `<span class="${cls(p.r4w)}" title="last ${CI.pxf(p.close)}${p.contract ? ' ' + p.contract : ''} · 12m ${CI.pctf(p.r52w)}">${CI.pctf(p.r4w)}</span>`; }},
       {h: 'Regime', f: r => `<span class="${tone(r.reg.tone)}">${esc(r.reg.lbl)}</span>`},
       {h: 'MM net', n: 1, f: r => sk(r.mm.N)},
       {h: 'Δ w/w', n: 1, f: r => `<span class="${cls(r.mm.dN)}">${sk(r.mm.dN)}</span>`},
@@ -213,7 +282,7 @@ function renderAll() {
   document.querySelectorAll('#win button').forEach(b => b.classList.toggle('on', b.dataset.w === win));
   document.querySelectorAll('#crop button').forEach(b => b.classList.toggle('on', b.dataset.c === crop));
   document.getElementById('asof').textContent = `CFTC report of ${D.dLabel(A.date)} (positions as of Tuesday, published Friday 3:30pm ET)`;
-  renderBrief(); renderMonitor(); renderHeat(); renderCIT(); renderDetail();
+  renderBrief(); renderIdeas(); renderMonitor(); renderTriggers(); renderHeat(); renderCIT(); renderDetail();
 }
 D.seg(document.getElementById('win'), ({w}) => { win = w; D.save('pos_win', w); renderAll(); });
 D.seg(document.getElementById('crop'), ({c}) => { crop = c; D.save('pos_crop', c); renderAll(); });
@@ -230,6 +299,7 @@ document.getElementById('copy').onclick = () => {
   D.stamp([P]);
   if (!P?.data) { document.getElementById('brief-card').innerHTML = '<p class="note">Positioning data has not been built yet.</p>'; return; }
   SNAP = P.data.snapshot;
+  PX = Object.fromEntries((SNAP.commodities || []).filter(c => c.px).map(c => [c.ticker, c.px]));
   document.getElementById('det-sel').innerHTML = P.data.manifest.commodities.map(c => `<option value="${c.ticker}">${esc(c.name)}</option>`).join('');
   renderAll();
 })();

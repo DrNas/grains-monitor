@@ -344,6 +344,23 @@ def liquidity():
     return out
 
 
+def policy_path(rt):
+    """Fed funds and SOFR futures strips written earlier in the build by pipelines/prices (Yahoo), with the implied
+    change from today's effective rate."""
+    from pathlib import Path
+    import os
+    p = Path(os.environ.get("PRICES_DIR") or Path(__file__).resolve().parents[2] / ".work" / "prices") / "curves.json"
+    try:
+        pol = json.loads(p.read_text()).get("policy") or {}
+    except Exception:
+        return None
+    base = rt.get("effr")
+    for k in ("zq", "sr3"):
+        for x in pol.get(k, []):
+            x["vs_effr_bp"] = None if base is None else round(100 * (x["rate"] - base))
+    return pol if pol.get("zq") or pol.get("sr3") else None
+
+
 def read(ind, rt, cv, lq):
     g = {i["key"]: i for i in ind}
     txt = []
@@ -361,7 +378,8 @@ def read(ind, rt, cv, lq):
         txt.append(f"Policy: fed funds target {rt.get('target_lo')}-{rt.get('target_hi')}% (effective {rt['effr']:.2f}%)"
                    + (f"; 2-year Treasury {rt['y2']:.2f}%" if rt.get("y2") is not None else "")
                    + (f" ({rt['y2_minus_ff']:+.2f} vs fed funds: market {'pricing cuts' if rt['y2_minus_ff'] < -0.15 else 'pricing hikes' if rt['y2_minus_ff'] > 0.15 else 'expecting little change'})" if rt.get("y2_minus_ff") is not None else "")
-                   + (f"; 10-year breakeven inflation {rt['breakeven10']:.2f}%, real 10-year {rt['real10']:.2f}%" if rt.get("breakeven10") is not None else "") + ".")
+                   + (f"; 10-year breakeven inflation {rt['breakeven10']:.2f}%, real 10-year {rt['real10']:.2f}%" if rt.get("breakeven10") is not None else "") + "."
+                   + (f" {rt['path_note']}." if rt.get("path_note") else ""))
     if lq.get("tga"):
         t = lq["tga"]
         txt.append(f"Liquidity: Treasury cash (TGA) ${t['bn']:,.0f}bn" + (f" ({t['chg_1m']:+,.0f}bn in a month: a rising TGA drains bank reserves)" if t.get("chg_1m") is not None else "")
@@ -402,10 +420,15 @@ def main():
         lq = liquidity()
     except Exception as e:
         NOTES.append(f"Treasury liquidity failed ({str(e)[:80]})")
+    pol = policy_path(rt)
+    if pol and pol.get("zq"):
+        z = pol["zq"]
+        far = z[-1]
+        rt["path_note"] = f"Fed funds futures price {far['rate']:.2f}% for {far['m']} ({far['vs_effr_bp']:+d} bp vs today's effective rate)" if far.get("vs_effr_bp") is not None else None
     if not ind and not rt and not cv and not lq:
         raise SystemExit("every macro source failed: " + "; ".join(NOTES))
     dates = [x for x in [rt.get("effr_date"), (cv or {}).get("date"), (lq.get("tga") or {}).get("date")] if x]
-    print(json.dumps(clean({"data": {"indicators": ind, "rates": rt, "curve": cv, "liquidity": lq, "read": read(ind, rt, cv, lq)},
+    print(json.dumps(clean({"data": {"indicators": ind, "rates": rt, "curve": cv, "liquidity": lq, "policy": pol, "read": read(ind, rt, cv, lq)},
                             "latest": max(dates) if dates else None, "n": len(ind),
                             "src": "BLS; BEA and University of Michigan via DBnomics; New York Fed; U.S. Treasury (yield curves, Daily Treasury Statement, Monthly Statement of the Public Debt, auctions)",
                             "note": "; ".join(NOTES), "partial": bool([n for n in NOTES if not n.startswith("stale")])}),
