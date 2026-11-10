@@ -11,7 +11,7 @@ on:
         default: 'crop_progress,wasde,export_sales,energy,positioning,macro'
   push:
     branches-ignore: [main]
-    paths: ['pipelines/**', 'data/wasde/**', 'scripts/build-data.mjs', '.github/workflows/check-pipelines.yml']
+    paths: ['pipelines/**', 'data/wasde/**', 'scripts/build-data.mjs', 'scripts/check-pages.mjs', 'assets/**', 'index.html', 'grains/**', 'energy/**', 'positioning/**', 'macro/**', '.github/workflows/check-pipelines.yml']
 
 permissions:
   contents: read
@@ -53,6 +53,19 @@ jobs:
         with:
           name: pipeline-output
           path: _site/data/
+          retention-days: 7
+      # Open each desk page with this build's data in a headless browser: fails on script errors, counts the
+      # charts and tables that drew, and keeps desktop and phone screenshots (download "page-screenshots").
+      - name: Install a headless browser
+        run: npm install --no-save playwright@1.56.1 && npx playwright install --with-deps chromium
+      - name: Check the pages render
+        id: pages
+        run: node scripts/check-pages.mjs _site page-check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: page-screenshots
+          path: page-check/
           retention-days: 7
       - name: Fail if a source failed
         if: steps.build.outputs.failed != ''
