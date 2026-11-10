@@ -3,6 +3,7 @@
 // Keys come from repository secrets (never written to the output). Local run: `USE_CURL=1 node scripts/build-data.mjs`
 // with MMN_API_KEY etc. in the environment; `ONLY=cot,weather` runs a subset.
 import fs from 'node:fs';
+import {execFile} from 'node:child_process';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {cleanKey, getJSON} from './lib.mjs';
@@ -11,16 +12,39 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // where the published site lives (previous snapshot is read from here). Custom domain first, then the github.io copy.
 const PAGES = (process.env.PAGES_URL ? [process.env.PAGES_URL] : ['https://grains.manasbafna.com/', 'https://drnas.github.io/grains-monitor/']);
 
+// [id, label, options]. Default: scripts/sources/<id>.mjs, data inside latest.json (the home page).
+// {py: 'pipelines/<x>/run.py'}: a Python pipeline that prints {data, latest, n, src, note, partial} as JSON on stdout.
+// {file: true}: the data goes to data/<id>.json (read by a desk page); latest.json keeps only its status.
 const SOURCES = [
   ['recap', 'Video recap'], ['calendar', 'Report calendar'], ['cot', 'COT positioning'], ['slaughter', 'Livestock slaughter'], ['livestock', 'Livestock prices'],
   ['basis', 'Cash grain basis'], ['weather', 'Weather'], ['drought', 'Drought Monitor'], ['enso', 'ENSO'],
+  ['crop_progress', 'Crop progress & condition', {py: 'pipelines/crop_progress/run.py', file: true}],
 ];
+// what gets published besides the data: the home page, shared assets and one folder per desk
+const SITE = ['index.html', 'assets', 'grains'];
+
+// Runs a Python pipeline with the build's environment (keys included) and parses the JSON it prints.
+function runPy(script, timeoutMin = 20) {
+  return new Promise((resolve, reject) => execFile(process.env.PYTHON || 'python3', [path.join(ROOT, script)],
+    {cwd: ROOT, env: process.env, timeout: timeoutMin * 60e3, maxBuffer: 512e6}, (err, out, errOut) => {
+      if (errOut) process.stdout.write(errOut.split('\n').filter(Boolean).map(l => `  [${path.basename(path.dirname(script))}] ${l}`).join('\n') + '\n');
+      if (err) return reject(new Error((errOut || err.message).trim().split('\n').pop()));
+      try { resolve(JSON.parse(out)); } catch (e) { reject(new Error(`not JSON from ${script}: ${out.slice(0, 120)}`)); }
+    }));
+}
 
 async function previous() {
   for (const base of PAGES) {
-    try { return await getJSON(base + 'data/latest.json?t=' + Date.now(), {timeout: 30, retries: 0}); } catch (e) {}
+    try { const snap = await getJSON(base + 'data/latest.json?t=' + Date.now(), {timeout: 30, retries: 0}); snap.base = base; return snap; } catch (e) {}
   }
   return null;
+}
+
+// previous published copy of a source: inside latest.json, or its own data/<id>.json for desk sources
+async function previousOf(prev, id) {
+  const s = prev?.series?.[id];
+  if (!s?.file) return s || null;
+  try { return await getJSON(prev.base + s.file + '?t=' + Date.now(), {timeout: 60, retries: 1}); } catch (e) { return null; }
 }
 
 async function main() {
@@ -33,18 +57,17 @@ async function main() {
   console.log(prev ? `previous snapshot: ${prev.generated}` : 'no previous snapshot (first run?)');
 
   const series = {}, failed = [];
-  for (const [id, label] of SOURCES) {
-    if (only.length && !only.includes(id)) { if (prev?.series?.[id]) series[id] = prev.series[id]; continue; }
+  for (const [id, label, opt = {}] of SOURCES) {
+    if (only.length && !only.includes(id)) { const old = await previousOf(prev, id); if (old) series[id] = old; continue; }
     const t0 = Date.now();
     try {
-      const mod = await import(`./sources/${id}.mjs`);
-      const r = await mod.load({now, keys, prev: prev?.series?.[id]?.data || null});
+      const r = opt.py ? await runPy(opt.py) : await (await import(`./sources/${id}.mjs`)).load({now, keys, prev: prev?.series?.[id]?.data || null});
       series[id] = {label, state: r.partial ? 'PARTIAL' : 'OK', latest: r.latest || null, n: r.n ?? null, src: r.src || '', note: r.note || '',
         built: now.toISOString(), data: r.data};
       console.log(`${id}: ${series[id].state} (${((Date.now() - t0) / 1000).toFixed(1)}s) latest ${r.latest}${r.note ? ' · ' + r.note : ''}`);
     } catch (e) {
       failed.push(id);
-      const old = prev?.series?.[id];
+      const old = await previousOf(prev, id);
       const why = (e.message || String(e)).replace(/\s+/g, ' ').slice(0, 300);
       series[id] = old?.data ? {...old, state: 'CACHED', note: `today's fetch failed (${why}); showing the copy built ${old.built}`}
         : {label, state: 'FAILED', latest: null, n: 0, src: '', note: why, built: now.toISOString(), data: null};
@@ -60,7 +83,13 @@ async function main() {
 
   const site = path.join(ROOT, '_site');
   fs.mkdirSync(path.join(site, 'data'), {recursive: true});
-  fs.copyFileSync(path.join(ROOT, 'index.html'), path.join(site, 'index.html'));
+  for (const p of SITE) fs.cpSync(path.join(ROOT, p), path.join(site, p), {recursive: true});
+  // desk sources: full entry in data/<id>.json, status only in latest.json
+  for (const [id, , opt = {}] of SOURCES) {
+    if (!opt.file || !series[id]) continue;
+    fs.writeFileSync(path.join(site, `data/${id}.json`), JSON.stringify({...series[id], file: undefined}));
+    series[id] = {...series[id], data: null, file: `data/${id}.json`};
+  }
   fs.writeFileSync(path.join(site, 'data/latest.json'), JSON.stringify(snapshot));
   if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `failed=${failed.join(' ')}\n`);
   for (const id of failed) console.log(`::error title=${id} failed::${(series[id].note || '').slice(0, 400)}`);

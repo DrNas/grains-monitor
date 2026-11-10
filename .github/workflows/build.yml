@@ -9,13 +9,13 @@ on:
     - cron: '45 15 * * 1-5'    # 10:45am ET in winter (EST); the "10:45 gate" step skips whichever of the two is off by an hour
     - cron: '23 17 * * 1-5'    # ~12:23pm ET: WASDE / Crop Production (noon), morning slaughter estimate
     - cron: '52 20 * * 1-5'    # ~3:52pm ET: NASS 3pm reports, COT (Fri 3:30pm)
-    - cron: '37 22 * * 1-5'    # ~5:37pm ET: state grain bids (mid-afternoon), Crop Progress (Mon 4pm)
+    - cron: '37 22 * * 1-5'    # ~5:37pm ET: state grain bids (mid-afternoon), Crop Progress (Mon 4pm, grains desk)
     - cron: '13 2 * * 2-6'     # ~9:13pm ET: evening backup
     - cron: '41 18 * * 0,6'    # weekends: weather
   workflow_dispatch:           # "Run workflow" button on the Actions tab
   push:
     branches: [main]
-    paths: ['index.html', 'scripts/**', 'data/**', '.github/workflows/build.yml']
+    paths: ['index.html', 'assets/**', 'grains/**', 'scripts/**', 'pipelines/**', 'data/**', '.github/workflows/build.yml']
 
 permissions:
   contents: read
@@ -52,6 +52,15 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         with:
           node-version: 22
+      - uses: actions/setup-python@v5
+        if: steps.gate.outputs.skip != 'true'
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: pipelines/requirements.txt
+      - name: Install pipeline dependencies
+        if: steps.gate.outputs.skip != 'true'
+        run: pip install -r pipelines/requirements.txt
       - name: Fetch every source and build the snapshot
         if: steps.gate.outputs.skip != 'true'
         id: build

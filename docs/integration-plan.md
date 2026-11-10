@@ -1,6 +1,12 @@
 # Integration plan: adapted data pipelines (Step 1 audit)
 
-Status: **waiting for approval.** Nothing below has been built yet.
+Status: **approved 2026-11-10, building.** The owner chose: build in the existing `build.yml` (no data commits), multi-page desks with a shared stylesheet, Groq tab skipped, dark only.
+
+## Build log
+| Step | What | Where | Checked |
+|---|---|---|---|
+| 1 | Shared stylesheet (tokens + base, colors unchanged), desk script (header, data loading, card with source/latest footer, table, tiles, chart wrapper with crosshair and PNG export), desk nav on Home, credits line, `.env.example`, Python support in the build, `check-pipelines.yml` | `assets/`, `index.html`, `scripts/build-data.mjs`, `.github/workflows/` | Home renders pixel-identical apart from the new nav links |
+| 2 | Crop progress & condition + yield model | `pipelines/crop_progress/`, `grains/` | Run on 41 years of archived NASS data; 5-yr averages match NASS's published ones (corn harvest 86%, soybeans 91% on Nov 8, 2026); live-key run: see the check workflow |
 
 Agreed scope (2026-11-10): Positioning, Grains & oilseeds, Livestock (beef and pork), Energy, Backtests, Markets & macro.
 Out for now: dairy, cotton, sugar, coffee, equities, the softs options vol desk (it only covers cotton, coffee and sugar), vendor-discovery, and the email reports (all of them are cotton reports).

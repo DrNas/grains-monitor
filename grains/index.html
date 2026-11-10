@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en" data-root="../" data-desk="grains">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grains Desk</title>
+<meta name="description" content="Crop progress and condition against last year and the 5-year average, with a condition-based yield model, for corn, soybeans and wheat. Built from USDA NASS data.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<header></header>
+<main>
+  <section id="progress">
+    <h2>Crop progress &amp; condition <span class="ctl seg" id="crop"></span></h2>
+    <p class="sub">USDA's weekly Crop Progress (Mondays, 4pm ET): national condition ratings and planting-to-harvest progress, this season against last season and the average of the previous five. The yield model reads the condition index at the point in the season where it has best predicted the final yield.</p>
+    <div id="tiles"></div>
+    <div class="grid g2">
+      <div id="cond-card"></div>
+      <div id="model-card"></div>
+    </div>
+    <div class="grid g2" style="margin-top:10px">
+      <div id="prog-card"></div>
+      <div id="stages-card"></div>
+    </div>
+  </section>
+</main>
+<script src="../assets/desk.js"></script>
+<script>
+'use strict';
+const D = Desk, {fmtN, fmtS, cls, esc} = D;
+D.header('Grains');
+D.footer('USDA NASS Quick Stats (Crop Progress, Crop Production)');
+
+const CROPS = [['corn', 'Corn'], ['soybeans', 'Soybeans'], ['wheat', 'Winter wheat'], ['spring_wheat', 'Spring wheat']];
+let CP = null, crop = D.restore('grains_crop', 'corn'), stage = null;
+
+// ISO week -> the Sunday that ends it (NASS week-ending date). Negative weeks are the previous autumn (winter wheat).
+function weekEnd(year, w) {
+  const jan4 = new Date(Date.UTC(year, 0, 4)), mon1 = new Date(jan4); mon1.setUTCDate(4 - ((jan4.getUTCDay() + 6) % 7));
+  const d = new Date(mon1); d.setUTCDate(mon1.getUTCDate() + 7 * (w - 1) + 6); return d.toISOString().slice(0, 10);
+}
+const wkLabel = (year, w) => D.dLabel(weekEnd(year, w), {month: 'short', day: 'numeric'});
+// day of year (non-leap numbering, as the pipeline writes it) -> "Nov 8"
+const doyLabel = x => D.dLabel(new Date(Date.UTC(2025, 0, Math.round(x))).toISOString(), {month: 'short', day: 'numeric'});
+const pts = a => (a || []).map(([x, y]) => ({x, y}));
+const pct = v => D.ok(v) ? fmtN(v, 0) + '%' : '—';
+const vs = (a, b) => D.ok(a) && D.ok(b) ? `<span class="${cls(a - b)}">${fmtS(a - b, 0)}</span>` : '—';
+
+function render() {
+  const c = CP?.data?.crops?.[crop];
+  if (!c) { document.getElementById('tiles').innerHTML = `<p class="note">No ${esc(crop)} data in this build.</p>`; return; }
+  const L = c.cond_last, prog = c.progress || [];
+  // the stage NASS reported most recently (what the market is watching now)
+  const live = [...prog].filter(s => s.last).sort((a, b) => a.last.date < b.last.date ? -1 : a.last.date > b.last.date ? 1 : prog.indexOf(a) - prog.indexOf(b)).at(-1);
+  if (!stage || !prog.some(s => s.stage === stage)) stage = live?.stage || prog[0]?.stage;
+
+  // ---- tiles
+  const t = [];
+  if (L) t.push({label: `Good/excellent, ${D.dLabel(L.date, {month: 'short', day: 'numeric'})}`, value: pct(L.ge), sub: `w/w ${fmtS(L.chg, 0)} · last year ${pct(L.ly)} · 5-yr ${pct(L.avg5)}`},
+    {label: 'Poor/very poor', value: pct(L.vp_p), sub: 'share of the crop rated P/VP'});
+  if (live) { const x = live.last; t.push({label: `${live.stage}, ${D.dLabel(x.date, {month: 'short', day: 'numeric'})}`, value: pct(x.pct), sub: `w/w ${fmtS(x.chg, 0)} · vs 5-yr ${D.ok(x.avg5) ? fmtS(x.pct - x.avg5, 0) : '—'} · last year ${pct(x.ly)}`}); }
+  const m = c.model;
+  if (m?.estimate != null) t.push({label: `${m.year} yield model`, value: fmtN(m.estimate, 1), sub: `bu/ac · USDA ${D.ok(m.usda) ? fmtN(m.usda, 1) : '—'} · trend ${fmtN(m.trend, 1)}`});
+  document.getElementById('tiles').innerHTML = D.tiles(t);
+
+  // ---- condition chart (good/excellent % by week, last 6 seasons, this season highlighted)
+  const years = Object.keys(c.ge || {}).sort().slice(-6), cy = years.at(-1);
+  document.getElementById('cond-card').innerHTML = D.card({title: `${c.label}: good/excellent % (national)`,
+    sub: crop === 'wheat' ? 'Crop year: negative weeks are the previous autumn\'s ratings.' : '', entry: CP, asof: L?.date,
+    body: '<div class="cb"><canvas id="c-cond"></canvas></div>', exp: 'c-cond'});
+  const grey = D.css('--grey');
+  D.chart('c-cond', {type: 'line', data: {datasets: [
+    ...years.map((y, i) => ({label: y, data: pts(c.ge[y]), borderColor: y === cy ? D.css('--orange') : y == cy - 1 ? D.css('--blue') : grey,
+      borderWidth: y === cy ? 2.5 : 1.2, pointRadius: 0, order: y === cy ? 0 : 1})),
+    {label: '5-yr avg', data: pts(c.ge_avg5), borderColor: D.css('--text'), borderDash: [4, 3], borderWidth: 1.2, pointRadius: 0}]},
+    options: {scales: {x: {type: 'linear', ticks: {callback: v => wkLabel(+cy, v)}}, y: {title: {display: true, text: 'G/E %'}}},
+      plugins: {tooltip: {callbacks: {title: i => `week ending ~${wkLabel(+cy, i[0].parsed.x)}`}}, crosshair: {x: v => wkLabel(+cy, Math.round(v)), y: {y: v => fmtN(v, 0) + '%'}}}}});
+
+  // ---- yield model
+  let mb = '<p class="note">Not enough condition and yield history for this crop.</p>';
+  if (m) {
+    mb = `<p class="yt">${m.year} yield from condition in week ${m.week} (~${wkLabel(m.year, m.week)}): <b>${fmtN(m.estimate, 1)} bu/ac</b>
+      vs USDA ${D.ok(m.usda) ? fmtN(m.usda, 1) : '—'}${m.usda_ref ? ` (${esc(m.usda_ref)})` : ''}, trend ${fmtN(m.trend, 1)}.</p>
+      <div class="cb sm"><canvas id="c-model"></canvas></div>
+      <p class="note">Backtest, leave one year out over ${m.test.n} seasons: mean absolute error ${fmtN(m.test.mae_model, 2)} bu/ac against ${fmtN(m.test.mae_trend, 2)} for the trend alone. The model called the direction against trend right in ${fmtN(100 * m.test.hit_direction, 0)}% of years. Each condition-index point is worth ${fmtN(m.test.slope, 2)} bu/ac.</p>`;
+  }
+  document.getElementById('model-card').innerHTML = D.card({title: 'Condition-based yield model', body: mb, entry: CP, asof: L?.date, exp: m ? 'c-model' : '',
+    src: 'USDA NASS (condition, final yields); linear trend since 1990'});
+  if (m) {
+    const h = m.history;
+    D.chart('c-model', {type: 'line', data: {labels: h.years, datasets: [
+      {label: 'Final yield', data: h.actual, borderColor: D.css('--text'), borderWidth: 1.5, pointRadius: 1.5},
+      {label: 'Model (out of sample)', data: h.pred, borderColor: D.css('--orange'), borderWidth: 1.5, pointRadius: 1.5}]},
+      options: {scales: {x: {ticks: {maxRotation: 0, autoSkip: true, maxTicksLimit: 8}}, y: {title: {display: true, text: 'bu/ac'}}},
+        plugins: {crosshair: {x: i => String(h.years[Math.round(i)] ?? ''), y: {y: v => fmtN(v, 1)}}}}});
+  }
+
+  // ---- progress: chart of one stage + table of every stage
+  const s = prog.find(x => x.stage === stage);
+  document.getElementById('prog-card').innerHTML = D.card({title: `${c.label}: % ${s ? esc(s.stage.toLowerCase()) : ''}`, entry: CP, asof: s?.last?.date,
+    sub: 'This season against last season and the previous five seasons\' average, each read at the same calendar date (computed from NASS weekly data). Click a stage in the table to chart it.',
+    body: s ? '<div class="cb"><canvas id="c-prog"></canvas></div>' : '<p class="note">No progress data.</p>', exp: s ? 'c-prog' : ''});
+  const yl = s?.last ? +s.last.date.slice(0, 4) : s?.year;   // calendar year of the reports (autumn planting runs a year ahead of the crop year)
+  if (s) D.chart('c-prog', {type: 'line', data: {datasets: [
+    {label: String(yl), data: pts(s.cur), borderColor: D.css('--orange'), borderWidth: 2.5, pointRadius: 2},
+    {label: String(yl - 1), data: pts(s.ly), borderColor: D.css('--blue'), borderWidth: 1.3, pointRadius: 0},
+    {label: '5-yr avg', data: pts(s.avg5), borderColor: D.css('--text'), borderDash: [4, 3], borderWidth: 1.2, pointRadius: 0}]},
+    options: {scales: {x: {type: 'linear', ticks: {callback: v => doyLabel(v)}}, y: {min: 0, max: 100, title: {display: true, text: '%'}}},
+      plugins: {tooltip: {callbacks: {title: i => doyLabel(i[0].parsed.x)}}, crosshair: {x: v => doyLabel(v), y: {y: v => fmtN(v, 0) + '%'}}}}});
+
+  const rows = prog.filter(x => x.last);
+  document.getElementById('stages-card').innerHTML = D.card({title: `${c.label}: every stage, latest report`, entry: CP,
+    sub: 'Last season and 5-yr average at the same calendar date. NASS skipped reports from October 1 to November 12, 2025 (government shutdown); last season\'s values in that window are interpolated.',
+    body: D.table([
+      {h: 'Stage', f: r => esc(r.stage)},
+      {h: 'Week ending', f: r => D.dLabel(r.last.date, {month: 'short', day: 'numeric', year: 'numeric'})},
+      {h: 'This season', n: 1, f: r => pct(r.last.pct)},
+      {h: 'w/w', n: 1, f: r => fmtS(r.last.chg, 0), c: r => cls(r.last.chg)},
+      {h: 'Last season', n: 1, f: r => pct(r.last.ly)},
+      {h: '5-yr avg', n: 1, f: r => pct(r.last.avg5)},
+      {h: 'vs 5-yr', n: 1, f: r => vs(r.last.pct, r.last.avg5)},
+    ], rows, {rowAttr: r => `class="click${r.stage === stage ? ' sel' : ''}" data-stage="${esc(r.stage)}"`})});
+}
+
+document.getElementById('crop').innerHTML = CROPS.map(([k, n]) => `<button data-k="${k}"${k === crop ? ' class="on"' : ''}>${n}</button>`).join('');
+D.seg(document.getElementById('crop'), ({k}) => { crop = k; stage = null; D.save('grains_crop', k); render(); });
+document.addEventListener('click', e => { const tr = e.target.closest('tr[data-stage]'); if (tr) { stage = tr.dataset.stage; render(); } });
+
+(async () => {
+  CP = await D.load('crop_progress');
+  D.stamp([CP]);
+  if (!CP?.data) { document.getElementById('tiles').innerHTML = '<p class="note">Crop progress data has not been built yet.</p>'; return; }
+  render();
+})();
+</script>
+</body>
+</html>
