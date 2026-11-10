@@ -54,16 +54,16 @@ Not carried over, besides the excluded sections: his `news.py` (Google News scra
 
 | His secret | Needed for | Ours |
 |---|---|---|
-| NASS_API_KEY | crop progress, geo, livestock | In `build.yml`. Check that it's set in repo secrets |
-| AMS_API_KEY | livestock | Same key as our `MMN_API_KEY` (MyMarketNews). Reuse it, no new secret |
-| FAS_API_KEY | export sales, South America | FAS's API uses an api.data.gov key, so our `DATAGOV_API_KEY` should work. Verify on the first run |
-| EIA_API_KEY | energy | In `build.yml`. Check that it's set in repo secrets |
+| NASS_API_KEY | crop progress, geo, livestock | **Set** (stored, not used yet) |
+| AMS_API_KEY | livestock | **Set** as `MMN_API_KEY` (same MyMarketNews key). Pipelines read `MMN_API_KEY` |
+| FAS_API_KEY | export sales, South America | **Set** as `DATAGOV_API_KEY` (api.data.gov). Pipelines read `DATAGOV_API_KEY` |
+| EIA_API_KEY | energy | **Set** (stored, not used yet) |
 | USDA_API_KEY | only his probe script | Not needed |
-| GROQ_API_KEY | AI analysis (optional) | **Missing** |
+| GROQ_API_KEY | AI analysis (optional) | **Missing**. Free at console.groq.com, only if that tab is wanted |
 | SMTP_*, EMAIL_FROM/TO | cotton emails | Not needed (out of scope) |
 | CLOUDFLARE_*, DASHBOARD_PASSWORD, DESK_USERS | his private setup | Dropped |
 
-I couldn't run `gh secret list` from this session, and no keys are set in this environment, so the "set" status needs checking under Settings → Secrets and variables → Actions. There are no `.env*` files in the repo. A `.env.example` (names only) will be added.
+Confirmed by the owner on 2026-11-10: the repo has exactly MMN_API_KEY, NASS_API_KEY, DATAGOV_API_KEY and EIA_API_KEY. No new secrets are needed for the agreed scope. There are no `.env*` files in the repo; a `.env.example` (names only) will be added. This session has no keys, so real-data checks run in GitHub Actions.
 
 ## 4. Proposed structure
 
