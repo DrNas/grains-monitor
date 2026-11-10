@@ -8,7 +8,7 @@ import path from 'node:path';
 import {chromium} from 'playwright';
 
 const SITE = path.resolve(process.argv[2] || '_site'), OUT = path.resolve(process.argv[3] || 'page-check');
-const PAGES = ['', 'positioning/', 'grains/', 'energy/', 'macro/'];
+const PAGES = ['', 'positioning/', 'grains/', 'energy/', 'macro/', 'backtests/'];
 const TYPES = {'.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png'};
 
 const server = http.createServer((req, res) => {

@@ -174,6 +174,10 @@ def main():
     if stale:
         notes.append("no report in 3 weeks: " + ", ".join(stale))
     manifest["not_reported"] = cftc.NOT_REPORTED
+    work = Path(os.environ.get("POSITIONING_WORK") or Path(__file__).resolve().parents[2] / ".work" / "positioning")
+    work.mkdir(parents=True, exist_ok=True)   # per-market history for later pipelines in the same build (backtests)
+    for t, ser in series.items():
+        (work / f"{t}.json").write_text(json.dumps(clean(ser), separators=(",", ":")))
     log(f"report {manifest['report_date']}, {len(manifest['commodities'])} markets, CIT {len(manifest.get('cit_tickers', []))}")
     print(json.dumps(clean({"data": {"snapshot": snapshot, "manifest": manifest}, "files": series,
                             "latest": manifest["report_date"], "n": len(manifest["commodities"]),

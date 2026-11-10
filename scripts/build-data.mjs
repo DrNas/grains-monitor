@@ -31,9 +31,10 @@ const SOURCES = [
   ['energy', 'Energy (EIA)', {py: 'pipelines/energy/run.py', file: true}],
   ['positioning', 'Positioning (COT & CIT)', {py: 'pipelines/positioning/run.py', file: true, prevFiles: true}],
   ['macro', 'Macro (rates, Treasury, economy)', {py: 'pipelines/macro/run.py', file: true}],
+  ['backtests', 'Backtests', {py: 'pipelines/backtests/run.py', file: true}],   // after prices and positioning (reads .work)
 ];
 // what gets published besides the data: the home page, shared assets and one folder per desk
-const SITE = ['index.html', 'assets', 'grains', 'energy', 'positioning', 'macro'];
+const SITE = ['index.html', 'assets', 'grains', 'energy', 'positioning', 'macro', 'backtests'];
 
 // Runs a Python pipeline with the build's environment (keys included) and parses the JSON it prints.
 function runPy(script, cache, prevLatest, prevFiles, timeoutMin = 25) {

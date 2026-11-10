@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en" data-root="../" data-desk="backtests">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backtests Desk</title>
+<meta name="description" content="Backtests desk: do trend, fund positioning (COT), fundamentals or seasonality predict futures returns? Weekly rules across 21 commodity markets since 2006, volatility-targeted with costs, with out-of-sample and multiple-testing checks.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="../assets/site.css">
+<style>td.wrap{white-space:normal;min-width:260px;max-width:420px}</style>
+</head>
+<body>
+<header></header>
+<main>
+  <section id="say">
+    <h2>What the tests say</h2>
+    <p class="sub" id="method"></p>
+    <div id="say-card"></div>
+  </section>
+  <section id="top">
+    <h2>Top findings</h2>
+    <div class="grid g2"><div id="top-card"></div><div id="oos-card"></div></div>
+  </section>
+  <section id="fam">
+    <h2>Across markets</h2>
+    <div class="grid g2"><div id="fam-card"></div><div id="spec-card"></div></div>
+    <div id="strat-card" style="margin-top:10px"></div>
+  </section>
+  <section id="mkt">
+    <h2><span id="mkt-title">By market</span> <span class="ctl"><select id="mkt-sel"></select></span></h2>
+    <p class="sub" id="mkt-read"></p>
+    <div class="grid g2"><div id="eq-card"></div><div id="regime-card"></div></div>
+    <div id="rules-card" style="margin-top:10px"></div>
+  </section>
+</main>
+<script src="../assets/desk.js"></script>
+<script>
+'use strict';
+const D = Desk, {fmtN, fmtS, cls, esc} = D;
+D.header('Backtests');
+D.footer('futures prices (Yahoo Finance, delayed); CFTC Commitments of Traders; USDA WASDE. Rules and statistics adapted from an existing open-source backtest lab');
+
+let B = null, mkt = D.restore('bt_mkt', 'C'), key = null;
+const EQ = {};
+const sh = v => v == null ? '—' : `<span class="${cls(v)}">${fmtN(v, 2)}</span>`;
+const pc = v => v == null ? '—' : fmtN(v, 1) + '%';
+const rowsTable = (rows, extra = []) => D.table([
+  {h: 'Market', f: r => `<a href="#mkt" data-mkt="${r.market}">${esc(r.name_m)}</a>`}, {h: 'Rule', f: r => esc(r.strategy), c: () => 'wrap'}, {h: 'Family', f: r => esc(r.family)},
+  {h: 'Sharpe', n: 1, f: r => sh(r.sharpe)}, {h: 'to 2018', n: 1, f: r => sh(r.is_sharpe)}, {h: '2019 on', n: 1, f: r => sh(r.oos_sharpe)},
+  {h: 'Ann. %', n: 1, f: r => fmtS(r.ann, 1)}, {h: 'Hit', n: 1, f: r => pc(r.hit)}, {h: 'Max DD', n: 1, f: r => pc(r.maxdd)}, {h: 'Trades', n: 1, f: r => r.trades}, ...extra], rows);
+
+function render() {
+  document.getElementById('method').innerHTML = `Weekly rules on ${Object.keys(B.data.coverage).length} markets since 2007. Each rule is scaled to ${fmtN(B.data.target_vol * 100, 0)}% annual volatility per market, pays ${fmtN(B.data.cost_bp, 0)} bp per unit of turnover, and trades only on information known at the time (COT positions are released on Friday and traded from the next session). In-sample to ${esc(B.data.split.slice(0, 4) - 1)}, out of sample from ${esc(B.data.split.slice(0, 4))}. With ${B.data.n_tests} rule-market tests, the best Sharpe expected from pure luck is about <b>${fmtN(B.data.noise_sharpe, 2)}</b>: single winners below that are weak evidence. Research, not advice.`;
+  document.getElementById('say-card').innerHTML = D.card({title: 'Findings', entry: B, body: `<ul class="glance">${B.data.learnings.map(l => `<li>${esc(l)}</li>`).join('')}</ul>`});
+  document.getElementById('top-card').innerHTML = D.card({title: 'Highest Sharpe (rules with at least 10 trades and 10% time in market)', entry: B, body: rowsTable(B.data.top)});
+  document.getElementById('oos-card').innerHTML = D.card({title: 'Best out of sample (positive before and after 2019)', entry: B, body: rowsTable(B.data.top_oos)});
+  document.getElementById('fam-card').innerHTML = D.card({title: 'By family', entry: B, body: D.table([{h: 'Family', f: r => esc(r.family)}, {h: 'Tests', n: 1, f: r => r.tests},
+    {h: 'Median Sharpe', n: 1, f: r => sh(r.median_sharpe)}, {h: 'Positive', n: 1, f: r => r.pos_share + '%'}, {h: 'Robust OOS', n: 1, f: r => r.robust_share + '%'}, {h: 'Median OOS', n: 1, f: r => sh(r.median_oos)}], B.data.families)});
+  const sp = (B.data.spec_response || []).filter(r => r.spec_d4 != null);
+  document.getElementById('spec-card').innerHTML = D.card({title: 'How funds respond after the event signals', entry: B, sub: 'Median change in managed-money net, as % of open interest, after each signal fires; and the price move after it.',
+    body: sp.length ? D.table([{h: 'Signal', f: r => esc(r.strategy), c: () => 'wrap'}, {h: 'Events', n: 1, f: r => fmtN(r.events, 0)}, {h: 'Specs 4 wk', n: 1, f: r => fmtS(r.spec_d4, 1) + '%'},
+      {h: '8 wk', n: 1, f: r => fmtS(r.spec_d8, 1) + '%'}, {h: 'Normal 4 wk', n: 1, f: r => fmtS(r.spec_base, 1) + '%'}, {h: 'Price 4 wk', n: 1, f: r => fmtS(r.fwd4, 1) + '%'}, {h: '13 wk', n: 1, f: r => fmtS(r.fwd13, 1) + '%'}], sp) : '<p class="note">No event signals.</p>'});
+  document.getElementById('strat-card').innerHTML = D.card({title: 'Every rule across markets', entry: B, body: D.table([{h: 'Rule', f: r => esc(r.strategy), c: () => 'wrap'}, {h: 'Family', f: r => esc(r.family)},
+    {h: 'Markets', n: 1, f: r => r.markets}, {h: 'Median Sharpe', n: 1, f: r => sh(r.median_sharpe)}, {h: 'Positive', n: 1, f: r => r.pos_share + '%'}, {h: 'Robust OOS', n: 1, f: r => r.robust_share + '%'},
+    {h: 'Median OOS', n: 1, f: r => sh(r.median_oos)}, {h: 'Median hit', n: 1, f: r => pc(r.median_hit)}, {h: 'Median max DD', n: 1, f: r => pc(r.median_dd)}], B.data.strategies)});
+  renderMarket();
+}
+
+async function renderMarket() {
+  const cov = B.data.coverage;
+  if (!cov[mkt]) mkt = Object.keys(cov)[0];
+  D.save('bt_mkt', mkt);
+  document.getElementById('mkt-sel').value = mkt;
+  const pm = B.data.per_market[mkt] || {};
+  document.getElementById('mkt-title').textContent = cov[mkt].name;
+  document.getElementById('mkt-read').textContent = pm.read || '';
+  const rows = B.data.results.filter(r => r.market === mkt).sort((a, b) => b.sharpe - a.sharpe);
+  if (!key || !rows.some(r => r.key === key)) key = (rows.find(r => r.robust && r.key !== 'long_only') || rows[0]).key;
+  document.getElementById('rules-card').innerHTML = D.card({title: `${esc(cov[mkt].name)}: every rule`, entry: B, sub: `Data ${esc(cov[mkt].from)} to ${esc(cov[mkt].to)}, ${esc(cov[mkt].source)}. Click a rule to chart it.`,
+    body: D.table([{h: 'Rule', f: r => esc(r.strategy), c: () => 'wrap'}, {h: 'Family', f: r => esc(r.family)}, {h: 'Sharpe', n: 1, f: r => sh(r.sharpe)}, {h: 'to 2018', n: 1, f: r => sh(r.is_sharpe)},
+      {h: '2019 on', n: 1, f: r => sh(r.oos_sharpe)}, {h: '4× costs', n: 1, f: r => sh(r.sharpe_4x_cost)}, {h: 'Ann. %', n: 1, f: r => fmtS(r.ann, 1)}, {h: 'Hit', n: 1, f: r => pc(r.hit)},
+      {h: 'Max DD', n: 1, f: r => pc(r.maxdd)}, {h: 'In market', n: 1, f: r => pc(r.exposure)}, {h: 'Hold', f: r => r.hold_wk ? `${fmtN(r.hold_wk, 1)} wk` : '—'}, {h: 'Robust', f: r => r.robust ? '<span class="up">yes</span>' : '<span class="muted">no</span>'}],
+      rows, {rowAttr: r => `class="click${r.key === key ? ' sel' : ''}" data-key="${r.key}"`})});
+  const sel = rows.find(r => r.key === key);
+  document.getElementById('regime-card').innerHTML = D.card({title: 'Recent regime check', entry: B, sub: 'Sharpe in 2020–23 (fit), 2024–25 (test) and 2026 so far, for the rules with the best full-period Sharpe.',
+    body: D.table([{h: 'Rule', f: r => esc(r.strategy), c: () => 'wrap'}, {h: 'Full', n: 1, f: r => sh(r.sharpe)}, {h: '2020–23', n: 1, f: r => sh(r.r_is_sharpe)}, {h: '2024–25', n: 1, f: r => sh(r.r_oos_sharpe)}, {h: '2026', n: 1, f: r => sh(r.live_sharpe)}],
+      rows.filter(r => r.key !== 'long_only').slice(0, 8))});
+  const box = document.getElementById('eq-card');
+  if (!EQ[mkt]) { box.innerHTML = '<p class="note">Loading equity curves…</p>'; EQ[mkt] = await D.load(`backtests/${mkt}`); }
+  const eq = EQ[mkt]?.[key], lo = EQ[mkt]?.long_only;
+  box.innerHTML = D.card({title: `Cumulative return: ${esc(sel?.strategy || key)}`, entry: B, exp: 'c-eq', sub: 'Sum of weekly returns at 10% target volatility, after costs, against the long-only benchmark at the same volatility.', body: '<div class="cb"><canvas id="c-eq"></canvas></div>'});
+  if (eq) {
+    const lm = new Map(lo || []);
+    D.chart('c-eq', {type: 'line', data: {labels: eq.map(p => p[0]), datasets: [
+      {label: 'rule', data: eq.map(p => p[1]), borderColor: D.css('--orange'), borderWidth: 2, pointRadius: 0},
+      {label: 'long only', data: eq.map(p => lm.get(p[0]) ?? null), borderColor: D.css('--grey'), borderWidth: 1.2, pointRadius: 0}]},
+      options: {plugins: {crosshair: {x: i => eq[Math.round(i)]?.[0] || '', y: {y: v => fmtN(v, 0) + '%'}}}, scales: {x: {ticks: {maxRotation: 0, autoSkip: true, maxTicksLimit: 8, callback(v) { return this.getLabelForValue(v).slice(0, 4); }}}, y: {title: {display: true, text: '% (cumulative)'}}}}});
+  }
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('tr[data-key]'); if (t) { key = t.dataset.key; renderMarket(); return; }
+  const a = e.target.closest('[data-mkt]'); if (a) { mkt = a.dataset.mkt; key = null; renderMarket(); document.getElementById('mkt').scrollIntoView({behavior: 'smooth'}); e.preventDefault(); }
+});
+document.getElementById('mkt-sel').onchange = e => { mkt = e.target.value; key = null; renderMarket(); };
+
+(async () => {
+  B = await D.load('backtests');
+  D.stamp([B]);
+  if (!B?.data) { document.getElementById('say-card').innerHTML = '<p class="note">Backtests have not been built yet.</p>'; return; }
+  document.getElementById('mkt-sel').innerHTML = Object.entries(B.data.coverage).map(([k, v]) => `<option value="${k}">${esc(v.name)}</option>`).join('');
+  render();
+})();
+</script>
+</body>
+</html>
