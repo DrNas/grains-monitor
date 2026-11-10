@@ -719,25 +719,6 @@
   "not": []
  },
  {
-  "k": "steoStor",
-  "g": "steo",
-  "label": "STEO end-of-month storage",
-  "freq": "monthly",
-  "id": "NGESPUS",
-  "routes": [
-   "steo"
-  ],
-  "must": [
-   "working gas"
-  ],
-  "prefer": [],
-  "not": [
-   "change",
-   "percent",
-   "_PCT"
-  ]
- },
- {
   "k": "steoHdd",
   "g": "steo",
   "label": "STEO heating degree days",
