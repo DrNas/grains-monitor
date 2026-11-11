@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en" data-root="./" data-desk="energy">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Energy Desk</title>
+<meta name="description" content="Energy desk: natural gas storage and supply/demand, crude and product inventories against the 5-year range, refining, crack spreads and inventory-based fair values. Built from EIA data.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/site-config.js"></script>
+</head>
+<body>
+<header></header>
+<main>
+  <section id="score">
+    <h2>Signal scorecard</h2>
+    <p class="sub">Each market's inventories against the same week of the previous five years, and its price against the inventory-based fair value (a rolling five-year fit with a walk-forward check). EIA weekly data, released Wednesdays 10:30am ET (petroleum) and Thursdays 10:30am ET (gas storage).</p>
+    <div id="scorecard"></div>
+  </section>
+  <section id="mkt">
+    <h2><span id="mkt-title">Market</span> <span class="ctl seg" id="mkt-seg"></span></h2>
+    <p class="sub" id="mkt-read"></p>
+    <div class="grid g2" id="mkt-grid"></div>
+  </section>
+</main>
+<script src="assets/desk.js"></script>
+<script>
+'use strict';
+const D = Desk, {fmtN, fmtS, cls, esc} = D;
+D.header('Energy');
+D.footer('U.S. Energy Information Administration: Weekly Natural Gas Storage Report, Weekly Petroleum Status Report, Natural Gas Monthly, Short-Term Energy Outlook, spot prices; NYMEX futures curves via Yahoo Finance (delayed)');
+
+const MKTS = [['NG', 'Natural gas'], ['CL', 'Crude oil'], ['HO', 'Distillate'], ['RB', 'Gasoline']];
+let E = null, mkt = D.param('m') || D.restore('energy_mkt', 'NG');
+const sgn = (v, d = 0) => D.ok(v) ? `<span class="${cls(v)}">${fmtS(v, d)}</span>` : '—';
+const C = n => D.css(n);
+const mon = s => D.dLabel(s, {month: 'short', year: '2-digit'});
+const day = s => D.dLabel(s, {month: 'short', day: 'numeric', year: 'numeric'});
+// ISO week of the current season -> "Nov 6" (EIA weeks end Friday)
+const wkLabel = (year, w) => { const j4 = new Date(Date.UTC(year, 0, 4)), m1 = new Date(j4); m1.setUTCDate(4 - ((j4.getUTCDay() + 6) % 7)); const d = new Date(m1); d.setUTCDate(m1.getUTCDate() + 7 * (w - 1) + 4); return D.dLabel(d.toISOString(), {month: 'short', day: 'numeric'}); };
+
+const cards = [];   // [html, draw] in display order
+const add = (html, draw, wide) => cards.push([wide ? `<div style="grid-column:1/-1">${html}</div>` : html, draw]);
+
+// seasonal chart: 5-year range band, 5-year average, last year, this year
+function seasonal(id, title, s, unit, sub = '', asof = '') {
+  if (!s) return;
+  add(D.card({title, sub, entry: E, asof, exp: id, body: `<div class="cb"><canvas id="${id}"></canvas></div>`}), () =>
+    D.chart(id, {type: 'line', data: {labels: s.weeks, datasets: [
+      {label: '5-yr max', data: s.max5, borderColor: 'transparent', backgroundColor: C('--grey') + '40', fill: '+1', pointRadius: 0},
+      {label: '5-yr range', data: s.min5, borderColor: 'transparent', pointRadius: 0},
+      {label: '5-yr avg', data: s.avg5, borderColor: C('--text'), borderDash: [4, 3], borderWidth: 1.2, pointRadius: 0},
+      {label: String(s.cy - 1), data: s.last, borderColor: C('--blue'), borderWidth: 1.3, pointRadius: 0},
+      {label: String(s.cy), data: s.this, borderColor: C('--orange'), borderWidth: 2.5, pointRadius: 0}]},
+      options: {plugins: {legend: {labels: {filter: i => i.text !== '5-yr max'}}, crosshair: {x: i => wkLabel(s.cy, Math.round(i) + 1), y: {y: v => fmtN(v, 0) + ' ' + unit}}},
+        scales: {x: {ticks: {maxTicksLimit: 12, callback: (v, i) => wkLabel(s.cy, i + 1)}}, y: {title: {display: true, text: unit}}}}}));
+}
+// line chart of [[date, v], ...] series
+function lines(id, title, series, unit, {sub = '', asof = '', digits = 2, wide = false} = {}) {
+  const ok = series.filter(x => x.data?.length);
+  if (!ok.length) return;
+  const labels = [...new Set(ok.flatMap(x => x.data.map(p => p[0])))].sort();
+  add(D.card({title, sub, entry: E, asof: asof || labels.at(-1), exp: id, body: `<div class="cb"><canvas id="${id}"></canvas></div>`}), () => {
+    D.chart(id, {type: 'line', data: {labels, datasets: ok.map(x => { const m = new Map(x.data); return {label: x.label, data: labels.map(l => m.get(l) ?? null), borderColor: C(x.color),
+      borderWidth: x.w || 1.5, borderDash: x.dash, pointRadius: 0, spanGaps: true, yAxisID: x.axis || 'y'}; })},
+      options: {plugins: {crosshair: {x: i => day(labels[Math.round(i)]), y: {y: v => fmtN(v, digits)}}},
+        scales: {x: {ticks: {maxRotation: 0, autoSkip: false, callback(v, i) { const L = labels.length, st = Math.max(1, Math.ceil(L / 7)); return i === L - 1 || (i % st === 0 && L - 1 - i > st * 0.6) ? mon(labels[i]) : null; }}, grid: {display: false}},
+          y: {title: {display: true, text: unit}}, ...(ok.some(x => x.axis === 'y1') ? {y1: {position: 'right', grid: {display: false}}} : {})}}});
+  }, wide);
+}
+// weekly change bars against the 5-year average change
+function changes(id, title, rows, unit) {
+  if (!rows?.length) return;
+  add(D.card({title, entry: E, asof: rows.at(-1)[0], exp: id, sub: 'Last 26 weeks. Dashes: the average change in the same week over the previous five years.',
+    body: `<div class="cb"><canvas id="${id}"></canvas></div>`}), () =>
+    D.chart(id, {type: 'bar', data: {labels: rows.map(r => r[0]), datasets: [
+      {type: 'bar', label: 'this year', data: rows.map(r => r[1]), backgroundColor: rows.map(r => r[1] < 0 ? C('--red') : C('--blue'))},
+      {type: 'line', label: '5-yr average', data: rows.map(r => r[2]), borderColor: C('--text'), borderDash: [4, 3], borderWidth: 1.2, pointRadius: 2, showLine: false, pointStyle: 'line', pointRadius: 8}]},
+      options: {plugins: {crosshair: {x: i => day(rows[Math.round(i)]?.[0]), y: {y: v => fmtN(v, 1) + ' ' + unit}}},
+        scales: {x: {ticks: {maxRotation: 0, autoSkip: true, maxTicksLimit: 7, callback(v) { return D.dLabel(this.getLabelForValue(v), {month: 'short', day: 'numeric'}); }}}, y: {title: {display: true, text: unit}}}}}));
+}
+function balanceCard(title, b, unit) {
+  if (!b) return;
+  const per = b.periods.map(p => unit.includes('monthly') ? mon(p) : D.dLabel(p, {month: 'short', day: 'numeric'}));
+  add(D.card({title, sub: `${unit}. ${b.avg_label} against the same period a year earlier.`, entry: E, asof: b.periods.at(-1),
+    body: `<div class="tw"><table><tr><th></th>${per.map(p => `<th class="n">${p}</th>`).join('')}<th class="n">${b.avg_label.replace(' average', ' avg')}</th><th class="n">year ago</th><th class="n">chg</th></tr>
+      ${b.rows.map(r => `<tr><td>${esc(r.name)}</td>${r.values.map(v => `<td class="n">${fmtN(v, 1)}</td>`).join('')}<td class="n"><b>${fmtN(r.avg, 1)}</b></td><td class="n">${fmtN(r.avg_ya, 1)}</td><td class="n">${D.ok(r.chg_ya_pct) ? sgn(r.chg_ya_pct, 1) + '%' : '—'}</td></tr>`).join('')}</table></div>`}), null, true);
+}
+function fairCard(M) {
+  const f = M.fair;
+  if (!f) {
+    if (M.name === 'WTI crude') add(D.card({title: 'Inventory fair value: WTI 1st–2nd month spread', entry: E,
+      body: `<p class="note">This model needs a long history of the 1st and 2nd month WTI contracts. EIA stopped publishing NYMEX settlements in April 2024, and the free price feed only carries the front month's history, so the spread model is not run; the curve card shows today's spreads.${M.fair_outright ? ` For reference: U.S. crude days of supply explain only R² ${fmtN(M.fair_outright.r2, 2)} of the outright WTI price over ${M.fair_outright.window_weeks} weeks, so outright crude is a global story.` : ''}</p>`}));
+    return;
+  }
+  const id = `c-fair-${mkt}`, sid = `c-fsc-${mkt}`, wf = f.walk_forward;
+  add(D.card({title: `Inventory fair value: ${esc(f.label)}`, entry: E, asof: f.date, exp: id,
+    sub: `Driver: ${esc(f.driver)}. Fit over ${f.window_weeks} weeks since ${day(f.since)}${f.seasonal ? ', with a seasonal term' : ''}.`,
+    body: `${D.tiles([{label: 'Actual', value: fmtN(f.actual, 2), sub: f.unit}, {label: 'Fair value', value: fmtN(f.fair, 2), sub: f.unit},
+      {label: 'Gap', value: sgn(f.gap, 2), sub: `z ${fmtS(f.gap_z, 1)}`}, {label: 'R²', value: fmtN(f.r2, 2), sub: esc(f.quality.split(':')[0])}])}
+      <div class="cb"><canvas id="${id}"></canvas></div>
+      <p class="note">Model ${esc(f.quality)}.${wf ? ` Walk-forward over the last ${wf.n} weeks: ${esc(wf.reads)} (correlation of the gap with the next ${wf.horizon_weeks} weeks' move ${wf.corr_gap_next}, right direction ${wf.hit}% of the time).` : ''}</p>`}), () =>
+    D.chart(id, {type: 'line', data: {labels: f.series.map(r => r[0]), datasets: [
+      {label: 'actual', data: f.series.map(r => r[1]), borderColor: C('--orange'), borderWidth: 1.8, pointRadius: 0},
+      {label: 'inventory fair value', data: f.series.map(r => r[2]), borderColor: C('--text'), borderDash: [4, 3], borderWidth: 1.2, pointRadius: 0}]},
+      options: {plugins: {crosshair: {x: i => day(f.series[Math.round(i)]?.[0]), y: {y: v => fmtN(v, 2)}}},
+        scales: {x: {ticks: {maxRotation: 0, autoSkip: true, maxTicksLimit: 7, callback(v) { return mon(this.getLabelForValue(v)); }}}, y: {title: {display: true, text: f.unit}}}}}), true);
+}
+function curveCard(id, title, cv, unit, sub) {
+  if (!cv?.length) return;
+  const sp = cv.length > 1 ? cv[1].v - cv[0].v : null;
+  add(D.card({title, sub: sub + (D.ok(sp) ? ` First spread ${esc(cv[0].m)}/${esc(cv[1].m)}: ${fmtS(sp, 3)} (${sp > 0 ? 'contango' : 'backwardation'}).` : ''), src: 'NYMEX via Yahoo Finance', asof: cv[0].d, exp: id,
+    body: `<div class="cb"><canvas id="${id}"></canvas></div>`}), () =>
+    D.chart(id, {type: 'line', data: {labels: cv.map(c => c.m), datasets: [{label: unit, data: cv.map(c => c.v), borderColor: C('--orange'), borderWidth: 2, pointRadius: 3}]},
+      options: {plugins: {legend: {display: false}, crosshair: {x: i => cv[Math.round(i)]?.m || '', y: {y: v => fmtN(v, 3)}}}, scales: {y: {title: {display: true, text: unit}}}}}));
+}
+function tableCard(title, cols, rows, opts = {}) { add(D.card({title, entry: E, ...opts, body: D.table(cols, rows)})); }
+
+function renderScore() {
+  const ms = E.data.markets;
+  document.getElementById('scorecard').innerHTML = D.card({title: 'Inventories and fair value, latest week', entry: E,
+    body: D.table([
+      {h: 'Market', f: ([k, M]) => `<a href="#mkt" data-mkt="${k}">${esc(M.name)}</a>`},
+      {h: 'Inventory', f: ([, M]) => esc(M.stocks.name)},
+      {h: 'Week to', f: ([, M]) => D.dLabel(M.stocks.date, {month: 'short', day: 'numeric'})},
+      {h: 'Level', n: 1, f: ([, M]) => `${fmtN(M.stocks.value, M.unit_stock === 'Bcf' ? 0 : 1)} ${M.unit_stock === 'Bcf' ? 'Bcf' : 'mb'}`},
+      {h: 'w/w', n: 1, f: ([, M]) => sgn(M.stocks.wow, M.unit_stock === 'Bcf' ? 0 : 1)},
+      {h: 'vs 5-yr', n: 1, f: ([, M]) => sgn(M.stocks.dev_pct, 1) + '%'},
+      {h: 'Days of supply', n: 1, f: ([, M]) => fmtN(M.stocks.days, 1)},
+      {h: 'Fair value gap', n: 1, f: ([, M]) => M.fair ? `${sgn(M.fair.gap, 2)} <span class="muted">${esc(M.fair.unit)}</span>` : '<span class="muted">needs futures</span>'},
+      {h: 'Model', f: ([, M]) => M.fair ? esc(M.fair.quality.split(':')[0]) : '—'},
+    ], MKTS.filter(([k]) => ms[k]).map(([k]) => [k, ms[k]]))});
+}
+
+function renderMarket() {
+  const M = E.data.markets[mkt];
+  cards.length = 0;
+  document.querySelectorAll('#mkt-seg button').forEach(b => b.classList.toggle('on', b.dataset.k === mkt));
+  if (!M) { document.getElementById('mkt-grid').innerHTML = '<p class="note">No data for this market in this build.</p>'; return; }
+  document.getElementById('mkt-title').textContent = M.name;
+  document.getElementById('mkt-read').textContent = M.read;
+  const st = M.stocks;
+  if (mkt === 'NG') {
+    add(D.card({title: 'Lower 48 working gas', entry: E, asof: st.date, body: D.tiles([
+      {label: `Week to ${D.dLabel(st.date, {month: 'short', day: 'numeric'})}`, value: fmtN(st.value, 0) + ' Bcf', sub: `${fmtS(st.wow, 0)} on the week (5-yr avg ${fmtS(st.wow_avg5, 0)})`},
+      {label: 'vs 5-yr average', value: sgn(st.dev, 0) + ' Bcf', sub: `${fmtS(st.dev_pct, 1)}% · 5-yr ${fmtN(st.avg5, 0)}`},
+      {label: 'Year ago', value: fmtN(st.yago, 0) + ' Bcf', sub: D.ok(st.yago) ? `${fmtS(st.value - st.yago, 0)} vs now` : ''},
+      ...M.projection.filter(p => p.projected).map(p => ({label: `At 5-yr pace: ${p.what.split(' (')[0]}`, value: fmtN(p.projected, 0) + ' Bcf', sub: `5-yr avg ${fmtN(p.avg5, 0)}`}))])}), null, true);
+    seasonal('c-ng-st', 'Lower 48 working gas against the 5-year range', M.seasonal, 'Bcf', '', st.date);
+    changes('c-ng-ch', 'Weekly net change vs 5-year average', M.weekly_change, 'Bcf');
+    lines('c-ng-sur', 'Surplus / deficit to the 5-year average', [{label: 'Bcf', data: M.surplus.map(r => [r[0], r[1]]), color: '--orange'}, {label: '%', data: M.surplus.map(r => [r[0], r[2]]), color: '--blue', axis: 'y1', w: 1}], 'Bcf', {digits: 0});
+    tableCard('Regional storage', [{h: 'Region', f: r => esc(r.name)}, {h: 'Bcf', n: 1, f: r => fmtN(r.value, 0)}, {h: 'w/w', n: 1, f: r => sgn(r.wow, 0)},
+      {h: '5-yr avg', n: 1, f: r => fmtN(r.avg5, 0)}, {h: 'vs 5-yr', n: 1, f: r => D.ok(r.dev_pct) ? sgn(r.dev_pct, 1) + '%' : '—'}, {h: 'Year ago', n: 1, f: r => fmtN(r.yago, 0)}], M.regions, {asof: st.date});
+    fairCard(M);
+    balanceCard('Monthly balance', M.balance, M.balance_unit);
+    const steoEnd = M.steo.steoProd?.at(-1)?.[0];
+    lines('c-ng-steo', 'Short-Term Energy Outlook: supply and demand', [{label: 'dry production', data: M.steo.steoProd, color: '--orange'}, {label: 'consumption', data: M.steo.steoCons, color: '--blue'},
+      {label: 'LNG exports', data: M.steo.steoLng, color: '--green', axis: 'y1'}], 'Bcf/d', {sub: `EIA STEO history and forecast${steoEnd ? ` (forecast through ${mon(steoEnd)})` : ''}; right axis: LNG exports.`, digits: 1, asof: E.latest});
+    lines('c-ng-hh', 'Henry Hub spot', [{label: 'Henry Hub', data: M.prices.hh, color: '--orange'}], '$/MMBtu');
+    curveCard('c-ng-cv', 'Natural gas futures curve', M.curve, '$/MMBtu', 'NYMEX Henry Hub futures by delivery month (Yahoo Finance, delayed). Winter months over summer = the market paying for storage.');
+  } else if (mkt === 'CL') {
+    add(D.card({title: 'U.S. crude inventories', entry: E, asof: st.date, body: D.tiles([
+      {label: `Commercial (ex-SPR), week to ${D.dLabel(st.date, {month: 'short', day: 'numeric'})}`, value: fmtN(st.value, 1) + ' mb', sub: `${fmtS(st.wow, 1)} on the week`},
+      {label: 'vs 5-yr average', value: sgn(st.dev, 1) + ' mb', sub: `${fmtS(st.dev_pct, 1)}%`},
+      {label: 'Cushing', value: fmtN(st.cushing, 1) + ' mb', sub: `${fmtS(st.cushing_wow, 1)} w/w · 5-yr ${fmtN(st.cushing_avg5, 1)}`},
+      {label: 'Days of supply', value: fmtN(st.days, 1), sub: 'stocks / refinery runs'}, {label: 'SPR', value: fmtN(st.spr, 1) + ' mb', sub: 'Strategic Petroleum Reserve'}])}), null, true);
+    seasonal('c-cl-st', 'Crude oil inventories against the 5-year range', M.seasonal, 'mb', 'U.S. commercial, excluding the SPR.', st.date);
+    changes('c-cl-ch', 'Weekly build and draw', M.builds, 'mb');
+    seasonal('c-cl-cu', 'Cushing, Oklahoma (NYMEX delivery point)', M.seasonal_cushing, 'mb', '', st.date);
+    lines('c-cl-ref', 'Refinery runs and utilization', [{label: 'crude input (kb/d)', data: M.refining.runs, color: '--orange'}, {label: 'utilization (%)', data: M.refining.util, color: '--blue', axis: 'y1', w: 1}], 'kb/d', {digits: 0});
+    fairCard(M);
+    balanceCard('Weekly crude balance', M.balance, M.balance_unit);
+    lines('c-cl-px', 'Crude spot: WTI and Brent', [{label: 'WTI Cushing', data: M.prices.wti, color: '--orange'}, {label: 'Brent', data: M.prices.brent, color: '--blue'}], '$/bbl');
+    curveCard('c-cl-cv', 'WTI futures curve', M.curve, '$/bbl', 'NYMEX WTI by delivery month (Yahoo Finance, delayed). Downward sloping (backwardation) = tight prompt supply; upward (contango) = ample stocks.');
+    lines('c-cl-wb', 'WTI–Brent', [{label: 'WTI minus Brent', data: M.prices.wti_brent, color: '--orange'}], '$/bbl', {sub: 'A wider discount pulls more U.S. crude into exports.'});
+  } else {
+    const short = M.name.split(' / ')[1];
+    add(D.card({title: `U.S. ${short} inventories`, entry: E, asof: st.date, body: D.tiles([
+      {label: `Week to ${D.dLabel(st.date, {month: 'short', day: 'numeric'})}`, value: fmtN(st.value, 1) + ' mb', sub: `${fmtS(st.wow, 1)} on the week`},
+      {label: 'vs 5-yr average', value: sgn(st.dev, 1) + ' mb', sub: `${fmtS(st.dev_pct, 1)}%`},
+      {label: 'Days of supply', value: fmtN(st.days, 1), sub: `5-yr ${fmtN(st.days_avg5, 1)} · stocks / 4-wk demand`}])}), null, true);
+    seasonal(`c-${mkt}-st`, `${M.name.split(' / ')[0]}: ${short} stocks against the 5-year range`, M.seasonal, 'mb', '', st.date);
+    lines(`c-${mkt}-dem`, `Product supplied (implied demand), 4-week average`, [{label: short, data: M.demand, color: '--orange'}], 'kb/d', {digits: 0});
+    lines(`c-${mkt}-ck`, `Gulf Coast ${short} crack vs WTI`, [{label: 'crack', data: M.crack, color: '--orange'}], '$/bbl', {sub: 'Gulf Coast spot product × 42 minus WTI Cushing spot.'});
+    seasonal(`c-${mkt}-cks`, 'Crack seasonality', M.crack_seasonal, '$/bbl', 'Weekly average crack, this year against the previous five.');
+    fairCard(M);
+    balanceCard(`Weekly ${short} balance`, M.balance, M.balance_unit);
+  }
+  document.getElementById('mkt-grid').innerHTML = cards.map(c => c[0]).join('');
+  cards.forEach(c => c[1] && c[1]());
+}
+
+function setMkt(k) { mkt = k; D.save('energy_mkt', k); renderMarket(); }
+document.getElementById('mkt-seg').innerHTML = MKTS.map(([k, n]) => `<button data-k="${k}">${n}</button>`).join('');
+D.seg(document.getElementById('mkt-seg'), ({k}) => setMkt(k));
+document.addEventListener('click', e => { const a = e.target.closest('a[data-mkt]'); if (a) setMkt(a.dataset.mkt); });
+
+(async () => {
+  E = await D.load('energy');
+  D.stamp([E]);
+  if (!E?.data) { document.getElementById('scorecard').innerHTML = '<p class="note">Energy data has not been built yet.</p>'; return; }
+  renderScore(); renderMarket();
+  if (location.hash) setTimeout(() => document.querySelector(location.hash)?.scrollIntoView(), 300);
+})();
+</script>
+</body>
+</html>
