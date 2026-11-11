@@ -10,7 +10,7 @@ on:
   workflow_dispatch:           # "Run workflow" button on the Actions tab
 
 permissions:
-  contents: read
+  contents: write     # only to save the preview on the staging-preview branch (one commit, replaced each run)
 
 concurrency:
   group: staging
@@ -73,6 +73,17 @@ jobs:
           name: staging-preview
           path: _preview
           retention-days: 14
+      # The preview also goes on its own branch (a single commit, replaced every run), so it can be looked at
+      # without downloading the zip. That branch is never merged and nothing builds or deploys from it.
+      - name: Save the preview on the staging-preview branch
+        run: |
+          cd _preview
+          git init -q -b staging-preview
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "Staging preview from ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" staging-preview
       - name: Flag sources that failed
         if: steps.build.outputs.failed != ''
         env:
