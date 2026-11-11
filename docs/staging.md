@@ -12,8 +12,10 @@ A second copy of the site for trying changes before they reach the live one. It 
 ## Looking at it
 
 1. GitHub → **Actions** → **Staging build (not published)** → the latest run.
-2. Under **Artifacts**, download `staging-site` and unzip it.
-3. In the unzipped folder, start a small local web server and open it (pages load their data files, which browsers block on a double-clicked file):
+2. Under **Artifacts**, download `staging-preview`, unzip it and double-click `index.html`. That's it.
+
+`staging-preview` is the same site rearranged to open from files (`scripts/make-preview.mjs`). `staging-site` is the
+site exactly as it would be hosted; to look at that one, unzip it and start a small local web server in the folder:
 
 ```bash
 python -m http.server 8000

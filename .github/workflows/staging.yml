@@ -65,6 +65,14 @@ jobs:
           name: staging-site
           path: _site
           retention-days: 14
+      # The same site as plain files: unzip and double-click index.html, no web server needed
+      - name: Make the double-click preview
+        run: node scripts/make-preview.mjs _site _preview
+      - uses: actions/upload-artifact@v4
+        with:
+          name: staging-preview
+          path: _preview
+          retention-days: 14
       - name: Flag sources that failed
         if: steps.build.outputs.failed != ''
         env:
