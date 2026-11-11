@@ -80,7 +80,7 @@ const D = Desk, {fmtN, fmtS, cls, esc} = D, CI = COTInsights;
 D.header('Positioning');
 D.footer('CFTC Commitments of Traders, disaggregated, futures and options combined; CFTC Supplemental (Commodity Index Traders); futures prices from Yahoo Finance (delayed)');
 
-let P = null, SNAP = null, PX = {}, win = D.restore('pos_win', 'y3'), crop = D.restore('pos_crop', 'all'), A = null, sel = D.restore('pos_mkt', 'C');
+let P = null, SNAP = null, PX = {}, win = D.restore('pos_win', 'y3'), crop = D.restore('pos_crop', 'all'), A = null, sel = D.param('m') || D.restore('pos_mkt', 'C');
 const SERIES = {};
 const k = CI.k, sk = CI.sk, ord = CI.ord;
 const tone = t => `tone-${t}`;
@@ -302,6 +302,7 @@ document.getElementById('copy').onclick = () => {
   PX = Object.fromEntries((SNAP.commodities || []).filter(c => c.px).map(c => [c.ticker, c.px]));
   document.getElementById('det-sel').innerHTML = P.data.manifest.commodities.map(c => `<option value="${c.ticker}">${esc(c.name)}</option>`).join('');
   renderAll();
+  if (location.hash) setTimeout(() => document.querySelector(location.hash)?.scrollIntoView(), 300);
 })();
 </script>
 </body>

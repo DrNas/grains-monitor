@@ -161,7 +161,7 @@ document.addEventListener('click', e => { const tr = e.target.closest('tr[data-s
 // ================= WASDE and exports =================
 const COMS = [['corn', 'Corn'], ['soybeans', 'Soybeans'], ['meal', 'Soybean meal'], ['oil', 'Soybean oil'], ['wheat', 'Wheat']];
 const CROP_OF = {corn: 'corn', soybeans: 'soybeans', meal: 'soybeans', oil: 'soybeans', wheat: 'wheat'};
-let WA = null, EX = null, com = D.restore('grains_com', 'corn'), revItem = 'end_stocks';
+let WA = null, EX = null, com = D.param('c') || D.restore('grains_com', 'corn'), revItem = 'end_stocks';
 const sgn = (v, d = 0) => D.ok(v) ? `<span class="${cls(v)}">${fmtS(v, d)}</span>` : '';
 const BAL_ROWS = [['area_planted', 'Area planted (mil ac)', 1], ['area_harvested', 'Area harvested (mil ac)', 1], ['yield', 'Yield', 1], ['beg_stocks', 'Beginning stocks', 0],
   ['production', 'Production', 0], ['imports', 'Imports', 0], ['supply', 'Total supply', 0], ['feed_residual', 'Feed & residual', 0], ['fsi', 'Food, seed & industrial', 0],
@@ -276,6 +276,7 @@ document.addEventListener('click', e => { const tr = e.target.closest('tr[data-r
   D.stamp([CP, WA, EX]);
   if (!CP?.data) document.getElementById('tiles').innerHTML = '<p class="note">Crop progress data has not been built yet.</p>';
   setCom(com);
+  if (location.hash) setTimeout(() => document.querySelector(location.hash)?.scrollIntoView(), 300);
 })();
 </script>
 </body>

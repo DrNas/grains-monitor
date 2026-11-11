@@ -144,6 +144,7 @@ function render() {
   D.stamp([M]);
   if (!M?.data) { document.getElementById('read-card').innerHTML = '<p class="note">Macro data has not been built yet.</p>'; return; }
   render();
+  if (location.hash) setTimeout(() => document.querySelector(location.hash)?.scrollIntoView(), 300);
 })();
 </script>
 </body>

@@ -30,7 +30,7 @@ D.header('Energy');
 D.footer('U.S. Energy Information Administration: Weekly Natural Gas Storage Report, Weekly Petroleum Status Report, Natural Gas Monthly, Short-Term Energy Outlook, spot prices; NYMEX futures curves via Yahoo Finance (delayed)');
 
 const MKTS = [['NG', 'Natural gas'], ['CL', 'Crude oil'], ['HO', 'Distillate'], ['RB', 'Gasoline']];
-let E = null, mkt = D.restore('energy_mkt', 'NG');
+let E = null, mkt = D.param('m') || D.restore('energy_mkt', 'NG');
 const sgn = (v, d = 0) => D.ok(v) ? `<span class="${cls(v)}">${fmtS(v, d)}</span>` : '—';
 const C = n => D.css(n);
 const mon = s => D.dLabel(s, {month: 'short', year: '2-digit'});
@@ -199,6 +199,7 @@ document.addEventListener('click', e => { const a = e.target.closest('a[data-mkt
   D.stamp([E]);
   if (!E?.data) { document.getElementById('scorecard').innerHTML = '<p class="note">Energy data has not been built yet.</p>'; return; }
   renderScore(); renderMarket();
+  if (location.hash) setTimeout(() => document.querySelector(location.hash)?.scrollIntoView(), 300);
 })();
 </script>
 </body>

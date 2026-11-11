@@ -40,7 +40,7 @@ const D = Desk, {fmtN, fmtS, cls, esc} = D;
 D.header('Backtests');
 D.footer('futures prices (Yahoo Finance, delayed); CFTC Commitments of Traders; USDA WASDE. Rules and statistics adapted from an existing open-source backtest lab');
 
-let B = null, mkt = D.restore('bt_mkt', 'C'), key = null;
+let B = null, mkt = D.param('m') || D.restore('bt_mkt', 'C'), key = null;
 const EQ = {};
 const sh = v => v == null ? '—' : `<span class="${cls(v)}">${fmtN(v, 2)}</span>`;
 const pc = v => v == null ? '—' : fmtN(v, 1) + '%';
@@ -110,6 +110,7 @@ document.getElementById('mkt-sel').onchange = e => { mkt = e.target.value; key =
   if (!B?.data) { document.getElementById('say-card').innerHTML = '<p class="note">Backtests have not been built yet.</p>'; return; }
   document.getElementById('mkt-sel').innerHTML = Object.entries(B.data.coverage).map(([k, v]) => `<option value="${k}">${esc(v.name)}</option>`).join('');
   render();
+  if (location.hash) setTimeout(() => document.querySelector(location.hash)?.scrollIntoView(), 300);
 })();
 </script>
 </body>

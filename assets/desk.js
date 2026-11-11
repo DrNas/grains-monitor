@@ -21,7 +21,73 @@
       <h1><a href="${root}" style="color:inherit;text-decoration:none">Grains &amp; Livestock Monitor</a> <span class="muted" style="font-weight:400">· ${esc(title)}</span></h1>
       <nav class="desks">${DESKS.map(([p, n]) => `<a href="${root}${p}"${p === here + '/' || (!here && !p) ? ' class="on"' : ''}>${n}</a>`).join('')}</nav>
       <span class="sp"></span><span class="muted" id="stamp">loading…</span></div>`;
+    mountSearch(document.querySelector('header .hrow'));
   }
+
+  // ---- unified search across the desks: sections, markets and common terms. Press "/" to focus.
+  const MARKETS = [['CO', 'Brent crude', 'oil'], ['NG', 'Natural gas', 'henry hub gas'], ['CL', 'WTI crude', 'oil crude'], ['HO', 'ULSD diesel heating oil', 'distillate'],
+    ['XB', 'RBOB gasoline', 'gasoline'], ['C', 'Corn', 'grain'], ['S', 'Soybeans', 'beans oilseed'], ['SM', 'Soybean meal', 'meal'], ['BO', 'Soybean oil', 'bean oil'],
+    ['W', 'Chicago wheat (SRW)', 'wheat'], ['KW', 'KC HRW wheat', 'wheat kansas'], ['HG', 'Copper', 'metals'], ['ALI', 'Aluminum', 'metals'], ['GC', 'Gold', 'metals'],
+    ['SI', 'Silver', 'metals'], ['SB', 'Sugar', 'softs'], ['KC', 'Coffee', 'softs arabica'], ['CC', 'Cocoa', 'softs'], ['CT', 'Cotton', 'softs'],
+    ['LC', 'Live cattle', 'livestock beef'], ['LH', 'Lean hogs', 'livestock pork']];
+  const GRAINS = {C: 'corn', S: 'soybeans', SM: 'meal', BO: 'oil', W: 'wheat', KW: 'wheat'}, ENERGY = {NG: 'NG', CL: 'CL', HO: 'HO', XB: 'RB'};
+  const SECTIONS = [
+    ['Home', '', 'Daily recap and video', '#recap', 'summary'], ['Home', '', 'What changed this week', '#week', 'summary weekly'],
+    ['Home', '', 'Report calendar', '#cal', 'usda wasde crop progress release dates schedule'], ['Home', '', 'Fund positioning (home chart)', '#cot', 'cot managed money'],
+    ['Home', '', 'Livestock: slaughter, cutout, cash, packer margin', '#meat', 'cattle hogs beef pork'], ['Home', '', 'Cash grain basis', '#basis', 'bids elevator'],
+    ['Home', '', 'Crop and feedlot weather, NOAA outlooks', '#wx', 'rain temperature forecast'], ['Home', '', 'Drought Monitor and ENSO', '#drought', 'el nino la nina'],
+    ['Positioning', 'positioning/', 'Desk brief', '#brief-sec', 'cot weekly read'], ['Positioning', 'positioning/', 'Trade ideas, watchlist and scorecard', '#ideas', 'trend carry signals'],
+    ['Positioning', 'positioning/', 'Positioning monitor', '#monitor', 'cot index setup score'], ['Positioning', 'positioning/', 'Trigger levels and dollar flows', '#triggers', 'breakout moving average macd atr'],
+    ['Positioning', 'positioning/', 'Fund positioning heatmap', '#heat-sec', 'percentile'], ['Positioning', 'positioning/', 'Index traders (CIT)', '#cit', 'commodity index'],
+    ['Grains', 'grains/', 'WASDE supply and demand, revisions', '#sd', 'balance sheet ending stocks usda'], ['Grains', 'grains/', 'Crop progress and condition, yield model', '#progress', 'nass planting harvest good excellent'],
+    ['Grains', 'grains/', 'Export sales and inspections', '#exports', 'fas fgis buyers commitments'], ['Grains', 'grains/', 'Stocks-to-use vs farm price', '#su', 'price'],
+    ['Energy', 'energy/', 'Signal scorecard', '#score', 'eia inventories fair value'], ['Energy', 'energy/?m=NG', 'Natural gas storage', '#mkt', 'eia storage bcf injection withdrawal steo'],
+    ['Energy', 'energy/?m=CL', 'Crude oil stocks and Cushing', '#mkt', 'eia wpsr refinery runs brent'], ['Energy', 'energy/?m=HO', 'Distillate stocks and cracks', '#mkt', 'diesel crack spread'],
+    ['Energy', 'energy/?m=RB', 'Gasoline stocks and cracks', '#mkt', 'rbob crack spread demand'],
+    ['Macro', 'macro/', 'Rates and policy: fed funds, SOFR, yield curve', '#rates', 'fomc fed futures treasury 2s10s breakeven real yield'],
+    ['Macro', 'macro/', 'Treasury liquidity: TGA and bill supply', '#liq', 'tga treasury general account bills issuance'],
+    ['Macro', 'macro/', 'U.S. economy: inflation, jobs, growth', '#econ', 'cpi ppi pce payrolls unemployment gdp'],
+    ['Backtests', 'backtests/', 'What the tests say', '#say', 'findings sharpe noise'], ['Backtests', 'backtests/', 'Top findings and rules across markets', '#top', 'strategy trend cot seasonal'],
+  ];
+  function searchIndex() {
+    const out = SECTIONS.map(([desk, path, label, hash, kw]) => ({desk, label, href: root + path + hash, text: `${desk} ${label} ${kw}`.toLowerCase()}));
+    for (const [t, name, kw] of MARKETS) {
+      out.push({desk: 'Positioning', label: `${name}: COT history, setup and trade idea`, href: `${root}positioning/?m=${t}#detail`, text: `${name} ${kw} ${t} positioning cot`.toLowerCase()});
+      out.push({desk: 'Backtests', label: `${name}: every rule`, href: `${root}backtests/?m=${t}#mkt`, text: `${name} ${kw} ${t} backtest`.toLowerCase()});
+      if (GRAINS[t] && t !== 'KW') out.push({desk: 'Grains', label: `${name}: WASDE, crop, exports`, href: `${root}grains/?c=${GRAINS[t]}#sd`, text: `${name} ${kw} grains wasde exports`.toLowerCase()});
+      if (ENERGY[t]) out.push({desk: 'Energy', label: `${name}: inventories and fundamentals`, href: `${root}energy/?m=${ENERGY[t]}#mkt`, text: `${name} ${kw} energy eia`.toLowerCase()});
+    }
+    return out;
+  }
+  function mountSearch(row) {
+    if (!row || row.querySelector('.search')) return;
+    const box = document.createElement('div');
+    box.className = 'search';
+    box.innerHTML = '<input type="search" placeholder="Search desks and markets  ( / )" aria-label="Search the desks"><div class="sres" role="listbox" hidden></div>';
+    const stamp = row.querySelector('#stamp');
+    row.insertBefore(box, stamp || null);
+    const input = box.querySelector('input'), list = box.querySelector('.sres'), idx = searchIndex();
+    let hits = [], pos = 0;
+    const draw = () => {
+      list.hidden = !hits.length;
+      list.innerHTML = hits.map((h, i) => `<a href="${h.href}" class="${i === pos ? 'on' : ''}"><span class="muted">${esc(h.desk)}</span> ${esc(h.label)}</a>`).join('');
+    };
+    input.addEventListener('input', () => {
+      const q = input.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      hits = q.length ? idx.filter(h => q.every(w => h.text.includes(w))).slice(0, 12) : [];
+      pos = 0; draw();
+    });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); pos = (pos + (e.key === 'ArrowDown' ? 1 : hits.length - 1)) % Math.max(hits.length, 1); draw(); }
+      else if (e.key === 'Enter' && hits[pos]) location.href = hits[pos].href;
+      else if (e.key === 'Escape') { input.value = ''; hits = []; draw(); input.blur(); }
+    });
+    input.addEventListener('blur', () => setTimeout(() => { list.hidden = true; }, 150));
+    input.addEventListener('focus', () => { if (hits.length) list.hidden = false; });
+    document.addEventListener('keydown', e => { if (e.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '')) { e.preventDefault(); input.focus(); } });
+  }
+  // a desk page opened from search (?m=CL) selects that market
+  const param = k => new URLSearchParams(location.search).get(k);
 
   // Footer shared by the desk pages (the home page has the same lines in its own footer)
   function footer(sources) {
@@ -56,7 +122,7 @@
     const latest = asof || entry?.latest || '';
     const state = entry && entry.state !== 'OK' ? ` · <span class="s-${entry.state}"><b>${entry.state}</b></span>` : '';
     return `<div class="card ${c}"${id ? ` id="${id}"` : ''}>
-      <div class="ct dct"><span>${title}</span>${exp ? `<span class="sp"></span><button class="xbtn" data-png="${exp}" title="Download this chart as a PNG">PNG</button>` : ''}</div>
+      <div class="ct dct"><span>${title}</span>${exp ? `<span class="sp"></span><button class="xbtn" data-png="${exp}" title="Download this chart as a PNG">PNG</button><button class="xbtn" data-svg="${exp}" title="Download this chart as an SVG (vector, for the newsletter)">SVG</button>` : ''}</div>
       ${sub ? `<div class="cs">${sub}</div>` : ''}${body}
       ${source || latest ? `<div class="cf dcf">${source ? `Source: ${esc(source)}` : ''}${latest ? ` · Latest data: ${esc(dLabel(latest))}` : ''}${state}</div>` : ''}
     </div>`;
@@ -126,6 +192,55 @@
     a.href = out.toDataURL('image/png'); a.download = `${b.dataset.png}.png`; a.click();
   });
 
+  // SVG export: the chart is drawn again onto canvas2svg's mock context (loaded on first use), giving real vector
+  // paths and text. Shims fill in what that 2014 library lacks for Chart.js 4: resetTransform, line dashes, clip
+  // regions and single-quoted font families; a `segment` option makes Chart.js draw lines with plain path commands (no Path2D).
+  const C2S_URL = 'https://cdn.jsdelivr.net/npm/canvas2svg@1.0.16/canvas2svg.js';
+  let c2sLoad = null;
+  const loadC2S = () => c2sLoad ||= new Promise((ok, no) => { const s = document.createElement('script'); s.src = C2S_URL; s.onload = ok; s.onerror = () => { c2sLoad = null; no(new Error('could not load the SVG library')); }; document.head.appendChild(s); });
+  async function svgOf(ch, caption) {
+    await loadC2S();
+    const w = Math.round(ch.width), h = Math.round(ch.height) + 24, ctx = new C2S(w, h), dashes = [];
+    ctx.canvas = {getContext: () => ctx, width: w, height: h, style: {}, addEventListener() {}, removeEventListener() {}};
+    ctx.resetTransform = function () { this.setTransform(1, 0, 0, 1, 0, 0); };
+    ctx.__dash = [];
+    ctx.setLineDash = function (a) { this.__dash = (a || []).slice(); };
+    ctx.getLineDash = function () { return this.__dash.slice(); };
+    const sv = ctx.save, rs = ctx.restore;
+    ctx.save = function () { dashes.push(this.__dash); return sv.call(this); };
+    ctx.restore = function () { this.__dash = dashes.pop() || []; return rs.call(this); };
+    const ap = ctx.__applyStyleToCurrentElement;
+    ctx.__applyStyleToCurrentElement = function (t) { ap.call(this, t); if (t === 'stroke' && this.__dash.length) this.__currentElement.setAttribute('stroke-dasharray', this.__dash.join(',')); };
+    const cl = ctx.clip;   // the library's clip() forgets to write the current path into the clip region
+    ctx.clip = function () { if (this.__currentElement?.nodeName === 'path' && this.__currentDefaultPath) this.__currentElement.setAttribute('d', this.__currentDefaultPath); return cl.call(this); };
+    const pf = ctx.__parseFont;
+    ctx.__parseFont = function () { const f = this.font; this.font = String(f).replace(/'/g, '"'); try { return pf.call(this); } catch (e) { this.font = '11px sans-serif'; return pf.call(this); } finally { this.font = f; } };
+    const frame = {id: 'svgframe',
+      beforeDraw(c) { c.ctx.save(); c.ctx.fillStyle = css('--card'); c.ctx.fillRect(0, 0, w, h); c.ctx.restore(); },
+      afterDraw(c) { c.ctx.save(); c.ctx.fillStyle = css('--muted'); c.ctx.font = '11px sans-serif'; c.ctx.textBaseline = 'alphabetic'; c.ctx.fillText(caption.length > w / 5.8 ? caption.slice(0, Math.floor(w / 5.8) - 1) + '…' : caption, 6, h - 8); c.ctx.restore(); }};
+    const cfg = ch.config, opts = {...cfg.options, animation: false, responsive: false, maintainAspectRatio: false, devicePixelRatio: 1,
+      layout: {...(cfg.options.layout || {}), padding: {bottom: 24}}};
+    const data = {...cfg.data, datasets: cfg.data.datasets.map(d => ({...d, segment: d.segment || {}}))};
+    const c2 = new Chart(ctx, {platform: Chart.BasicPlatform, type: cfg.type, data, options: opts, plugins: [frame]});
+    c2.draw();
+    const svg = ctx.getSerializedSvg(true);
+    c2.destroy();
+    return svg;
+  }
+  document.addEventListener('click', async e => {
+    const b = e.target.closest('button[data-svg]'); if (!b) return;
+    const ch = charts[b.dataset.svg]; if (!ch) return;
+    const card = b.closest('.card'), title = card?.querySelector('.ct span')?.textContent || '', foot = card?.querySelector('.dcf')?.textContent || '';
+    const label = b.textContent; b.textContent = '…';
+    try {
+      const svg = await svgOf(ch, `${title} · ${foot}`);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([svg], {type: 'image/svg+xml'})); a.download = `${b.dataset.svg}.svg`; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch (err) { alert('SVG export failed: ' + err.message); }
+    b.textContent = label;
+  });
+
   // Segmented buttons (same look as the home page): calls cb(dataset) on click
   const seg = (el, cb) => el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); cb(b.dataset); });
   const save = (k, v) => { try { localStorage.setItem('glm_' + k, JSON.stringify(v)); } catch (e) {} };
@@ -134,5 +249,5 @@
   Chart.defaults.color = css('--muted'); Chart.defaults.borderColor = css('--grid'); Chart.defaults.font.size = 11;
   Chart.defaults.plugins.legend.labels.boxWidth = 12; Chart.defaults.animation = false;
 
-  window.Desk = {root, css, esc, ok, fmtN, fmtS, cls, dLabel, header, footer, load, stamp, card, table, tiles, chart, seg, save, restore};
+  window.Desk = {root, css, esc, ok, fmtN, fmtS, cls, dLabel, header, footer, load, stamp, card, table, tiles, chart, seg, save, restore, param, mountSearch, svgOf, charts};
 })();
