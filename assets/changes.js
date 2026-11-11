@@ -73,5 +73,5 @@
 
   if (!groups.length) { box.closest('section')?.remove(); return; }
   box.innerHTML = D.card({title: 'The week across the desks', sub: 'Computed from each desk\'s latest data at every build; follow a heading to the desk.',
-    body: groups.map(([h, href, sub, L]) => `<div style="margin-top:6px"><a href="${href}" style="color:var(--text);font-weight:600;text-decoration:none">${h} →</a>${sub ? ` <span class="cs">${sub}</span>` : ''}<ul class="glance" style="margin:2px 0 4px">${L.map(l => `<li>${l}</li>`).join('')}</ul></div>`).join('')});
+    body: groups.map(([h, href, sub, L]) => `<div style="margin-top:6px"><a href="${D.link ? D.link(href) : href}" style="color:var(--text);font-weight:600;text-decoration:none">${h} →</a>${sub ? ` <span class="cs">${sub}</span>` : ''}<ul class="glance" style="margin:2px 0 4px">${L.map(l => `<li>${l}</li>`).join('')}</ul></div>`).join('')});
 })();

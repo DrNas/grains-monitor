@@ -7,6 +7,7 @@
 <meta name="description" content="Fund positioning, report calendar, livestock slaughter, cash grain basis and crop weather for grain and livestock futures traders. Built daily from USDA, CFTC and NOAA data.">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link rel="stylesheet" href="assets/site.css">
+<script src="assets/site-config.js"></script>
 <style>
 /* calendar */
 .next{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px}
@@ -595,7 +596,8 @@ syncSeg($('#cal-tier'), 't', calTier); syncSeg($('#cot-range'), 'y', cotYears); 
 
 async function boot() {
   // the hosted site serves its own copy; opened as a local file, read the published one
-  const urls = location.protocol === 'file:' ? ['https://grains.manasbafna.com/data/latest.json', 'https://drnas.github.io/grains-monitor/data/latest.json'] : ['data/latest.json'];
+  const pub = window.SITE_PUBLISHED || ['https://grains.manasbafna.com/', 'https://drnas.github.io/grains-monitor/'];
+  const urls = location.protocol === 'file:' && pub.length ? pub.map(u => u + 'data/latest.json') : ['data/latest.json'];
   for (const u of urls) { try { const r = await fetch(u + '?t=' + Math.floor(Date.now() / 3e5)); if (r.ok) { SNAP = await r.json(); break; } } catch (e) {} }
   if (!SNAP) { $('#stamp').textContent = 'could not load data/latest.json'; return; }
   renderStatus();

@@ -144,3 +144,7 @@ Each step: pipeline, then workflow, then page, then a grep for "BMR-Com"/"malli"
 - **TradingView**: not used. The only available client presents itself to TradingView as TradingView's own web app (forged Origin header), which is against its terms and was not built.
 - **NASS shutdown gap**: no Crop Progress reports from Oct 1 to Nov 12, 2025; last season's values in that window are interpolated (noted on the page).
 - **Check runs** have no published cache to start from until the branch is merged, so each one downloads the export sales history again (about 4.5 minutes).
+
+### Staging site
+
+A separate, unpublished test build: `.github/workflows/staging.yml`, with its own data history in the Actions cache. The published addresses are a build setting (`SITE_URLS`, written to `assets/site-config.js`). See `docs/staging.md`.

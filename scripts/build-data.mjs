@@ -134,6 +134,11 @@ async function main() {
   const site = path.join(ROOT, '_site');
   fs.mkdirSync(path.join(site, 'data'), {recursive: true});
   for (const p of SITE) fs.cpSync(path.join(ROOT, p), path.join(site, p), {recursive: true});
+  // the site's own address, used by pages opened as local files: SITE_URLS (comma separated; empty = not published
+  // anywhere yet, e.g. the staging build); default = the main site
+  const urls = process.env.SITE_URLS === undefined ? ['https://grains.manasbafna.com/', 'https://drnas.github.io/grains-monitor/']
+    : process.env.SITE_URLS.split(',').map(u => u.trim()).filter(Boolean).map(u => u.endsWith('/') ? u : u + '/');
+  fs.writeFileSync(path.join(site, 'assets/site-config.js'), `window.SITE_PUBLISHED = ${JSON.stringify(urls)};\n`);
   // desk sources: full entry in data/<id>.json, status only in latest.json
   for (const [id, , opt = {}] of SOURCES) {
     if (!opt.file || !series[id]) continue;

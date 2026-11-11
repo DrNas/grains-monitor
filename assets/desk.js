@@ -15,11 +15,17 @@
   // Site navigation: the home page, then one entry per desk. Add a desk here (and in index.html's nav.desks) when its page goes live.
   const DESKS = [['', 'Home'], ['positioning/', 'Positioning'], ['grains/', 'Grains'], ['energy/', 'Energy'], ['macro/', 'Macro'], ['backtests/', 'Backtests']];
 
+  const link = p => {
+    if (!window.SITE_OFFLINE) return root + p;
+    const m = /^([a-z]+)\/(.*)$/.exec(p);
+    return m ? `${m[1]}.html${m[2]}` : `index.html${p}`;
+  };
+
   function header(title) {
     const here = document.documentElement.dataset.desk || '';
     document.querySelector('header').innerHTML = `<div class="hrow">
-      <h1><a href="${root}" style="color:inherit;text-decoration:none">Grains &amp; Livestock Monitor</a> <span class="muted" style="font-weight:400">· ${esc(title)}</span></h1>
-      <nav class="desks">${DESKS.map(([p, n]) => `<a href="${root}${p}"${p === here + '/' || (!here && !p) ? ' class="on"' : ''}>${n}</a>`).join('')}</nav>
+      <h1><a href="${link('')}" style="color:inherit;text-decoration:none">Grains &amp; Livestock Monitor</a> <span class="muted" style="font-weight:400">· ${esc(title)}</span></h1>
+      <nav class="desks">${DESKS.map(([p, n]) => `<a href="${link(p)}"${p === here + '/' || (!here && !p) ? ' class="on"' : ''}>${n}</a>`).join('')}</nav>
       <span class="sp"></span><span class="muted" id="stamp">loading…</span></div>`;
     mountSearch(document.querySelector('header .hrow'));
   }
@@ -50,12 +56,12 @@
     ['Backtests', 'backtests/', 'What the tests say', '#say', 'findings sharpe noise'], ['Backtests', 'backtests/', 'Top findings and rules across markets', '#top', 'strategy trend cot seasonal'],
   ];
   function searchIndex() {
-    const out = SECTIONS.map(([desk, path, label, hash, kw]) => ({desk, label, href: root + path + hash, text: `${desk} ${label} ${kw}`.toLowerCase()}));
+    const out = SECTIONS.map(([desk, path, label, hash, kw]) => ({desk, label, href: link(path + hash), text: `${desk} ${label} ${kw}`.toLowerCase()}));
     for (const [t, name, kw] of MARKETS) {
-      out.push({desk: 'Positioning', label: `${name}: COT history, setup and trade idea`, href: `${root}positioning/?m=${t}#detail`, text: `${name} ${kw} ${t} positioning cot`.toLowerCase()});
-      out.push({desk: 'Backtests', label: `${name}: every rule`, href: `${root}backtests/?m=${t}#mkt`, text: `${name} ${kw} ${t} backtest`.toLowerCase()});
-      if (GRAINS[t] && t !== 'KW') out.push({desk: 'Grains', label: `${name}: WASDE, crop, exports`, href: `${root}grains/?c=${GRAINS[t]}#sd`, text: `${name} ${kw} grains wasde exports`.toLowerCase()});
-      if (ENERGY[t]) out.push({desk: 'Energy', label: `${name}: inventories and fundamentals`, href: `${root}energy/?m=${ENERGY[t]}#mkt`, text: `${name} ${kw} energy eia`.toLowerCase()});
+      out.push({desk: 'Positioning', label: `${name}: COT history, setup and trade idea`, href: link(`positioning/?m=${t}#detail`), text: `${name} ${kw} ${t} positioning cot`.toLowerCase()});
+      out.push({desk: 'Backtests', label: `${name}: every rule`, href: link(`backtests/?m=${t}#mkt`), text: `${name} ${kw} ${t} backtest`.toLowerCase()});
+      if (GRAINS[t] && t !== 'KW') out.push({desk: 'Grains', label: `${name}: WASDE, crop, exports`, href: link(`grains/?c=${GRAINS[t]}#sd`), text: `${name} ${kw} grains wasde exports`.toLowerCase()});
+      if (ENERGY[t]) out.push({desk: 'Energy', label: `${name}: inventories and fundamentals`, href: link(`energy/?m=${ENERGY[t]}#mkt`), text: `${name} ${kw} energy eia`.toLowerCase()});
     }
     return out;
   }
@@ -96,9 +102,10 @@
   }
 
   // Desk data lives in data/<id>.json. Opened as a local file, the page reads the published copy instead.
-  const PUBLISHED = ['https://grains.manasbafna.com/', 'https://drnas.github.io/grains-monitor/'];
+  // the site's own published address(es), from assets/site-config.js (written by the build; SITE_URLS)
+  const PUBLISHED = window.SITE_PUBLISHED || ['https://grains.manasbafna.com/', 'https://drnas.github.io/grains-monitor/'];
   async function load(id) {
-    const bases = location.protocol === 'file:' ? PUBLISHED : [root];
+    const bases = location.protocol === 'file:' && PUBLISHED.length ? PUBLISHED : [root];
     for (const b of bases) {
       try { const r = await fetch(`${b}data/${id}.json?t=${Math.floor(Date.now() / 3e5)}`); if (r.ok) return await r.json(); } catch (e) {}
     }
@@ -249,5 +256,5 @@
   Chart.defaults.color = css('--muted'); Chart.defaults.borderColor = css('--grid'); Chart.defaults.font.size = 11;
   Chart.defaults.plugins.legend.labels.boxWidth = 12; Chart.defaults.animation = false;
 
-  window.Desk = {root, css, esc, ok, fmtN, fmtS, cls, dLabel, header, footer, load, stamp, card, table, tiles, chart, seg, save, restore, param, mountSearch, svgOf, charts};
+  window.Desk = {root, link, css, esc, ok, fmtN, fmtS, cls, dLabel, header, footer, load, stamp, card, table, tiles, chart, seg, save, restore, param, mountSearch, svgOf, charts};
 })();
