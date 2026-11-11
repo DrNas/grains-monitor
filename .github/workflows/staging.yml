@@ -1,0 +1,92 @@
+name: Staging build (not published)
+
+# A separate test copy of the site, built from this branch. It is NOT deployed anywhere: the finished site is
+# saved as the "staging-site" download on the run page. It keeps its own data history in GitHub's build cache
+# (key "staging-site-..."), and never reads from or writes to the main site. See docs/staging.md.
+
+on:
+  push:
+    branches: [claude/quirky-wright-omj7zm]
+  workflow_dispatch:           # "Run workflow" button on the Actions tab
+
+permissions:
+  contents: write     # only to save the preview on the staging-preview branch (one commit, replaced each run)
+
+concurrency:
+  group: staging
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: pipelines/requirements.txt
+      - name: Install pipeline dependencies
+        run: pip install -r pipelines/requirements.txt
+      # The staging site's own previous build (snapshots, caches, history), from the last staging run
+      - name: Restore the previous staging build
+        uses: actions/cache/restore@v4
+        with:
+          path: staging-prev
+          key: staging-site-${{ github.run_id }}
+          restore-keys: staging-site-
+      - name: Serve the previous staging build locally
+        run: |
+          mkdir -p staging-prev
+          python -m http.server 8765 --bind 127.0.0.1 --directory staging-prev > /dev/null 2>&1 &
+          sleep 2
+          ls staging-prev/data 2>/dev/null | head -3 || echo "no previous staging build (first run)"
+      - name: Fetch every source and build the staging site
+        id: build
+        env:
+          PAGES_URL: http://127.0.0.1:8765/   # previous data comes only from the staging build above
+          SITE_URLS: ''                        # no public address yet; set it here once the staging domain exists
+          MMN_API_KEY: ${{ secrets.MMN_API_KEY }}
+          NASS_API_KEY: ${{ secrets.NASS_API_KEY }}
+          DATAGOV_API_KEY: ${{ secrets.DATAGOV_API_KEY }}
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+        run: node scripts/build-data.mjs
+      - name: Keep this build for the next staging run
+        run: rm -rf staging-prev && cp -r _site staging-prev
+      - uses: actions/cache/save@v4
+        with:
+          path: staging-prev
+          key: staging-site-${{ github.run_id }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: staging-site
+          path: _site
+          retention-days: 14
+      # The same site as plain files: unzip and double-click index.html, no web server needed
+      - name: Make the double-click preview
+        run: node scripts/make-preview.mjs _site _preview
+      - uses: actions/upload-artifact@v4
+        with:
+          name: staging-preview
+          path: _preview
+          retention-days: 14
+      # The preview also goes on its own branch (a single commit, replaced every run), so it can be looked at
+      # without downloading the zip. That branch is never merged and nothing builds or deploys from it.
+      - name: Save the preview on the staging-preview branch
+        run: |
+          cd _preview
+          git init -q -b staging-preview
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "Staging preview from ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" staging-preview
+      - name: Flag sources that failed
+        if: steps.build.outputs.failed != ''
+        env:
+          FAILED: ${{ steps.build.outputs.failed }}
+        run: |
+          echo "::warning::Failed in this staging build (the previous staging copy was kept if there was one): $FAILED"
