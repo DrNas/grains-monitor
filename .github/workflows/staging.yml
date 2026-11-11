@@ -67,4 +67,7 @@ jobs:
           retention-days: 14
       - name: Flag sources that failed
         if: steps.build.outputs.failed != ''
-        run: echo "::warning::Failed in this staging build (the previous staging copy was kept if there was one): ${{ steps.build.outputs.failed }}"
+        env:
+          FAILED: ${{ steps.build.outputs.failed }}
+        run: |
+          echo "::warning::Failed in this staging build (the previous staging copy was kept if there was one): $FAILED"
