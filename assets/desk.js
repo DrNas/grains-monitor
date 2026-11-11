@@ -92,7 +92,7 @@
   // Footer shared by the desk pages (the home page has the same lines in its own footer)
   function footer(sources) {
     document.querySelector('main').insertAdjacentHTML('beforeend', `<footer>Data: ${esc(sources)}. Rebuilt by a scheduled job; nothing is estimated or filled in, a missing number shows as —.<br>
-      Some data pipelines adapted from BMR-Com, with permission.<br>For information only, not investment advice. · <a href="https://manasbafna.com/">manasbafna.com</a></footer>`);
+      For information only, not investment advice. · <a href="https://manasbafna.com/">manasbafna.com</a></footer>`);
   }
 
   // Desk data lives in data/<id>.json. Opened as a local file, the page reads the published copy instead.
