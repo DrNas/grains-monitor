@@ -1,0 +1,48 @@
+{
+  "date": "2026-11-12",
+  "channel": "Grain Markets and Other Stuff",
+  "title": "Too Wet in Southern Brazil?? How Would Soybeans React to a Weather Problem??",
+  "url": "https://www.youtube.com/watch?v=OMNG7wQfeVQ",
+  "published": "2026-11-12",
+  "sections": [
+    {"topic": "Overnight (5:35am CT)", "bullets": [
+      "Dec corn unch 4.48 · Jan beans −2¼ 12.28½ · Dec CBOT wheat −2½ 5.97¼ · Dec KC −5¾ 6.33¾ · Dec MPLS −2 6.33½",
+      "Wed: Jan beans +~3c to ~12.31, still rising after the USDA report. Dec corn −1c 4.48 (profit-taking, export worries). Wheat up on doubts about the Russia/Ukraine talks"
+    ]},
+    {"topic": "South America weather", "bullets": [
+      "Last 14 days: Mato Grosso ~71% of normal rain, Paraná ~153%. That matches the Super El Niño pattern: dry north, wet south",
+      "7-day: more rain for Mato Grosso, Paraná ~95%. 8–14 day: 179%+ for most of southern Brazil",
+      "Planting ~65% done (AgRural); market not worried yet. Southern states are roughly a third of output",
+      "USDA Brazil soy 186 mmt (42% of world; US 124.5). Brazil is 61% of world soy exports vs US 24%. Brazil corn exports 43 mmt (~20%)",
+      "Joe: if this persists, beans will rally on forecasts (funds/algos) before the maps show it"
+    ]},
+    {"topic": "Price action / supply & demand", "bullets": [
+      "Dec corn still below the August low; a close above 4.57¼ is Joe’s line in the sand",
+      "Corn stocks/use: US 10.8%, world 21.5% (tightest since 2012/13). Joe says Dec corn in the 4.40s looks too cheap",
+      "Beans: report-day rally holding; trendline resistance 12.74. Stocks/use US 6.5%, world 27.9% (tightest in ~4 years). Joe calls beans fairly priced",
+      "SRW wheat “mostly dead”: US stocks/use ~40%, world 34%"
+    ]},
+    {"topic": "China / trade", "bullets": [
+      "COFCO bought at least 120k mt French wheat (largest from France since 2024), plus Argentine wheat (first since Feb). No confirmed US SRW sales",
+      "China is only #9 among wheat (6 mmt) and corn (5 mmt) importers. Soy imports of 115 mmt are ~60% of the world total"
+    ]},
+    {"topic": "Russia / Ukraine", "bullets": [
+      "Wednesday’s talks: no ceasefire, no progress on Black Sea shipping; next round has no date",
+      "IKAR: ~20 mmt of Russian grain is going into grain bags",
+      "Russia plus Ukraine ≈ 23–24% of world wheat exports. Actual shipments since July are down ~40%; Joe thinks USDA may cut its export estimates further"
+    ]},
+    {"topic": "Energy / macro / rates", "bullets": [
+      "Vance is weighing direct talks with a senior Iranian official; no date. Hormuz oil flows still well below pre-war",
+      "Dec WTI was above $100 in October, now 85.91 (−0.61 this morning). Joe blames the GOP midterm losses on the war and fuel prices (his opinion)",
+      "AAA diesel 6.10 (−43c from the 6.53 record); gas 3.91 (−59c from the 4.50 peak)",
+      "Stocks slightly lower, Treasuries flat. No Fed comments. Brief mention that “blue wave” tax changes are coming, mostly bad for farmers"
+    ]},
+    {"topic": "Cattle", "bullets": [
+      "Screwworm: ~130 confirmed cases in TX/NM/AZ, ~60 still active; cool, humid weather is helping it spread",
+      "~65k head of Mexican cattle have crossed since the August reopening; USDA is keeping ports open. Mackenzie says traders have tuned it out"
+    ]}
+  ],
+  "flags": [
+    "Caption errors corrected: “Migroso” = Mato Grosso, “Pirania” = Paraná, “Agural” = AgRural, “Kofkco” = COFCO, “IICAR” = IKAR, “Dorn/Dcorn” = Dec corn"
+  ]
+}
