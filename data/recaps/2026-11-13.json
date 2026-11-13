@@ -1,0 +1,48 @@
+{
+  "date": "2026-11-13",
+  "channel": "Grain Markets and Other Stuff",
+  "title": "Corn/Soybeans/Wheat - Which Chart Looks BULLISH?? - with Brian Splitt",
+  "url": "https://www.youtube.com/watch?v=x-FH2uPSxsU",
+  "published": "2026-11-13",
+  "sections": [
+    {"topic": "Price action (Thu)", "bullets": [
+      "Jan27 beans fell ~12c to $12.19; Dec26 corn fell ~6c to ~$4.42. Drivers: firmer USD and good South America weather",
+      "Wheat had double-digit losses despite Black Sea worries. Grains bounced overnight"
+    ]},
+    {"topic": "Charts (Splitt)", "bullets": [
+      "Most bullish chart: soybeans, the only one of the three still in an uptrend since January",
+      "Jan beans: move high $12.36, retaken overnight, and back above the 20-day MA",
+      "Corn: capped at the 20-day MA. Support ~$4.40, then the Aug low ~$4.34 and the trendline ~$4.10–4.12",
+      "Corn spreads firmed even on down days (Dec/Mar narrowest since about early April), which he reads as a bottoming signal",
+      "Wheat: HRW down 10 straight weeks. Key level ~$5.68"
+    ]},
+    {"topic": "South America", "bullets": [
+      "USDA raised US bean exports more than production, so carryout fell; the focus shifts to Brazil",
+      "El Niño is making southern Brazil too wet. Private Brazil soy estimates go as low as the low 170s MMT",
+      "BRL futures are down ~12% since the election, and beans have decoupled from the weak real"
+    ]},
+    {"topic": "China / trade", "bullets": [
+      "Flash sale: 136k mt of beans to China. Total soy sales are running 76% ahead of last year",
+      "China is at ~65.4% of the 25 MMT target. The $17B non-soy ag pledge is lagging (~$7B done)"
+    ]},
+    {"topic": "Demand / ethanol", "bullets": [
+      "Ethanol output 1.13M bpd, a seasonal record. Stocks 24.35M bbl. Margins +35–50c/gal"
+    ]},
+    {"topic": "Corteva", "bullets": [
+      "CTVA fell ~24%, a record one-day drop, with Brazil sales down 31%. The read-through is a risk to Brazil yields"
+    ]},
+    {"topic": "US weather", "bullets": [
+      "Drought covers 29% of the Corn Belt, and 48% of winter wheat areas",
+      "Little drought in Kansas plus high insurance guarantees means big winter wheat acreage, which is bearish for wheat"
+    ]},
+    {"topic": "Cattle / macro", "bullets": [
+      "Live cattle up as much as 2.43, feeders up 3.05–4.18",
+      "Splitt is eyeing short-term puts near $226.50–227 in Feb live cattle",
+      "No Fed or rates talk beyond a firmer USD and high Brazilian interest rates"
+    ]}
+  ],
+  "flags": [
+    "The feeder “335” level is unclear",
+    "The HRW insurance guarantee was heard as “811” (probably ~$8.11)"
+  ]
+}
