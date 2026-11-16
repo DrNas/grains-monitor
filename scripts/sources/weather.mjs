@@ -22,7 +22,7 @@ export async function load({now}) {
     latitude: ALL_POINTS.map(p => p.lat).join(','), longitude: ALL_POINTS.map(p => p.lon).join(','),
     daily: 'precipitation_sum,temperature_2m_max,temperature_2m_min', past_days: PAST, forecast_days: AHEAD,
     precipitation_unit: 'inch', temperature_unit: 'fahrenheit', timezone: 'GMT'});
-  let res = await getJSON('https://api.open-meteo.com/v1/forecast?' + q, {timeout: 90});
+  let res = await getJSON('https://api.open-meteo.com/v1/forecast?' + q, {timeout: 90, retries: 4});
   if (!Array.isArray(res)) res = [res];
   if (res.length !== ALL_POINTS.length) throw new Error(`expected ${ALL_POINTS.length} locations, got ${res.length}`);
 

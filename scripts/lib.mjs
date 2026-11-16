@@ -19,7 +19,7 @@ export async function getText(url, {headers = {}, timeout = 60, retries = 2, okS
   headers = {'User-Agent': UA, Accept: '*/*', ...headers};
   let last;
   for (let a = 0; a <= retries; a++) {
-    if (a) await sleep(2000 * a);
+    if (a) await sleep(Math.min(30000, 2000 * a * a));   // 2s, 8s, 18s, 30s...
     try {
       let status, text;
       if (process.env.USE_CURL) ({status, text} = await curl(url, {headers, timeout}));
@@ -30,7 +30,10 @@ export async function getText(url, {headers = {}, timeout = 60, retries = 2, okS
       if (okStatuses.includes(status)) return text;
       last = new Error(`HTTP ${status} from ${new URL(url).host}: ${text.slice(0, 160).replace(/\s+/g, ' ')}`);
       if (status >= 400 && status < 500 && status !== 429) break;   // a client error won't fix itself
-    } catch (e) { last = e; }
+    } catch (e) {
+      // Node's fetch reports every network error as "fetch failed"; the cause (DNS, reset, timeout) is underneath
+      const c = e.cause; last = c ? new Error(`${e.message}: ${c.code || ''} ${c.message || c}`.trim()) : e;
+    }
   }
   throw last;
 }

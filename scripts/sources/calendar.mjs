@@ -54,6 +54,21 @@ const addDays = (s, n) => { const t = new Date(s + 'T12:00:00Z'); t.setUTCDate(t
 const isHol = s => holidays(+s.slice(0, 4)).includes(s);
 const nextBiz = s => { let t = s; while ([0, 6].includes(new Date(t + 'T12:00:00Z').getUTCDay()) || isHol(t)) t = addDays(t, 1); return t; };
 
+// NOPA monthly crush report (National Oilseed Processors Association, members' soybean crush and soyoil
+// stocks): released on the 15th, or the next business day when the 15th is a weekend or holiday, 11:00 am CT.
+// NOPA's dates come from that rule, not a feed; marked "date estimated" whenever the rule moved the date.
+function nopa(from, to) {
+  const out = [];
+  const [fy, fm] = from.split('-').map(Number);
+  for (let k = 0; k < 6; k++) {
+    const y = fy + Math.floor((fm - 1 + k) / 12), m = ((fm - 1 + k) % 12) + 1;
+    const fifteenth = `${y}-${String(m).padStart(2, '0')}-15`, date = nextBiz(fifteenth);
+    if (date >= from && date <= to) out.push({date, time: '12:00', name: 'NOPA crush (monthly)', tier: 2, markets: 'soybeans, meal, oil',
+      src: 'NOPA (15th or next business day)', approx: date !== fifteenth});
+  }
+  return out;
+}
+
 // CFTC's published COT schedule: "2026 Release Schedule Month Dates January 05* 09 ... *Delayed release ..."
 async function cftcSchedule() {
   const t = (await getText('https://www.cftc.gov/MarketReports/CommitmentsofTraders/ReleaseSchedule/index.htm', {timeout: 60, headers: BROWSER}))
@@ -144,7 +159,7 @@ export async function load({now, prev}) {
   let cot = null;
   try { cot = await cftcSchedule(); if (!cot.size) throw new Error('no dates found on the page'); }
   catch (e) { notes.push(`CFTC schedule: ${e.message.slice(0, 80)} (COT dates from the usual rule)`); cot = null; }
-  events.push(...weekly(from, to, cot));
+  events.push(...weekly(from, to, cot), ...nopa(from, to));
   events = events.filter(e => e.date >= from && e.date <= to)
     .map(e => ({...e, at: etToUTC(e.date, e.time)}))
     .sort((a, b) => a.at < b.at ? -1 : a.at > b.at ? 1 : a.tier - b.tier);
