@@ -1,0 +1,54 @@
+{
+  "date": "2026-11-18",
+  "channel": "Grain Markets and Other Stuff",
+  "title": "Trump & Xi Hug in China - BIG Grain Buying to Follow??",
+  "url": "https://www.youtube.com/watch?v=metAvlmK_u4",
+  "published": "2026-11-18",
+  "sections": [
+    {"topic": "Overnight (5:24am CT)", "bullets": [
+      "Grains lower: Dec corn −2.5c at 4.4425; Jan beans −4.25c at 12.2125; Dec SRW −9c at 5.8625; Dec KC −8.25c at 6.2475; Dec MPLS −3.75c at 6.36"
+    ]},
+    {"topic": "China / trade", "bullets": [
+      "Bloomberg: China unlikely to hit the $17B US ag purchase commitment by year-end (ample domestic supply, weak demand). Timeline may be extended",
+      "The September tariff cuts still aren’t in effect. Beijing never formally confirmed the $17B deal announced in May",
+      "Strong USD and weak BRL make US grain less competitive vs Brazil and Argentina",
+      "Trump and Xi met at APEC in Shenzhen. Xi pledged to oppose protectionism; Putin criticized Western sanctions ahead of a trilateral meeting",
+      "Joe: corn + SRW combined is about $10.42 vs a ~$19 peak in 2022. China could make political buys, as it did with beans, but that looks less likely as time passes"
+    ]},
+    {"topic": "Demand / ethanol", "bullets": [
+      "Corn and ethanol groups are lobbying for ethanol in maritime fuel at the UN IMO, which has no carbon-score framework for it yet",
+      "Current alcohol-capable ships could use ~2B gal/yr (~680M bu corn). With ships on order, that rises to 7.7B gal (~2.7B bu)",
+      "Ships burn ~90B gal of fuel a year. This is a much easier fix than SAF; Joe and Pete Meyer would lobby the shipping lines directly"
+    ]},
+    {"topic": "Price action / positioning", "bullets": [
+      "Tue settles: Dec SRW +8c to ~5.95 and Dec HRW +14c to 6.33 on Black Sea risk (Ukraine strike on the Crimea bridge); Jan beans −4c to ~12.26; Dec corn −2c to ~4.47",
+      "Wheat price action is still poor. The summer lows have been taken out, and the Black Sea hasn’t added any US wheat demand",
+      "Corn: 4.57 is the line in the sand. A break below 4.38 targets the 4.2575 summer low",
+      "Beans are under pressure from the weak BRL and a US crush pace lagging USDA’s projection",
+      "No fund-positioning data was given"
+    ]},
+    {"topic": "Black Sea", "bullets": [
+      "Ukraine’s ag minister: 2027 grain could fall to ~30 MMT from 62 (corn 12–14 vs 29–30; wheat ~17)",
+      "Post-war vs pre-war: Russian wheat +18.3%, corn ~+13%; Ukraine wheat −14.4%, corn −5%",
+      "Joe: the Black Sea story keeps failing to move price"
+    ]},
+    {"topic": "South America weather", "bullets": [
+      "Favorable weather is weighing on beans. No significant Brazil problem yet (early)"
+    ]},
+    {"topic": "Cattle", "bullets": [
+      "Tue: live cattle −1.43 to −2.60; feeders −1.80 to −6.38. Cattle on Feed report is due Friday"
+    ]},
+    {"topic": "Rates / Fed / macro", "bullets": [
+      "NAHB HMI −4 to 25, the lowest since Apr 2020. 46% of builders are cutting prices and 68% are offering incentives",
+      "30y mortgage ~7.1% (Freddie Mac) vs ~5.5% on the 30y Treasury",
+      "Fed: the script blamed equity weakness on “more aggressive Fed rate hikes” (verify, may be a misstatement)",
+      "Equities Tue: Nasdaq −2.5% (lowest since April), S&P −1.9%. NVDA ~−36% from its October high; Q3 net income was $65.3B and its Q4 guidance beat consensus",
+      "This morning: S&P +0.4%, Treasuries mixed, crude −0.91 at 85.10"
+    ]}
+  ],
+  "flags": [
+    "They called the housing index both a “14-year low” and the lowest since Apr 2020, which don’t match",
+    "NVDA forward P/E was given as “10.8” vs 18.3 for the S&P, which looks wrong",
+    "Auto-caption garbles: “Apex” = APEC, “Scott Besson” = Bessent"
+  ]
+}
