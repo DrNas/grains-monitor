@@ -1,0 +1,4 @@
+# Python pipelines (pipelines/<feature>/run.py), installed by .github/workflows/build.yml
+requests==2.32.3
+numpy==2.2.6
+pandas==2.2.3
