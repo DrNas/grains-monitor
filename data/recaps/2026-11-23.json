@@ -1,0 +1,49 @@
+{
+  "date": "2026-11-23",
+  "channel": "Grain Markets and Other Stuff",
+  "title": "USDA Farmer Payment Data HACKED + Did the AI Bubble Just Pop??",
+  "url": "https://www.youtube.com/watch?v=WeFZq6pnXgM",
+  "published": "2026-11-23",
+  "sections": [
+    {"topic": "Overnight (5:25am CT)", "bullets": [
+      "Mar corn +2.75 at ~4.51; Jan beans +4.75 at ~12.25; Mar CBOT wheat +2 at 5.94; Mar KC +4 at 6.44; Mar MGEX +1 at 6.44",
+      "Friday: Jan beans +~13c to ~12.21; Dec corn −~5c to ~4.35; wheat mixed; pressure from strong USD and no fresh news"
+    ]},
+    {"topic": "Macro / rates / outside markets", "bullets": [
+      "Friday: Nasdaq −5.3%, ~20% off high (bear market); S&P −3.7%, Dow −1.9%, both >10% off highs (correction)",
+      "S&P down 8.6% on the week; ~$8.2T market cap lost since Oct 6 peak (Nvidia −$2.7T, Alphabet −>$1T, Micron −$510B)",
+      "Selloff tied partly to Anthropic IPO profit-taking (−8.5% Fri after +17% debut Thu) and to the possibility of a Fed rate hike",
+      "Joe: S&P trendline from 2022 low through Apr 2025 low sits >1,000 pts below market; a move there would force Fed easing; doesn't expect it",
+      "This AM: S&P futures +2.9%, Dow +2%, Nasdaq +3.5%; Treasuries slightly lower; Jan WTI −1.41 at $82.00; Feb gold and Mar silver each ~+3%",
+      "Dollar index near multi-year highs vs majors; BRL very weak overnight, a headwind for grains"
+    ]},
+    {"topic": "USDA hack", "bullets": [
+      "Hackers breached USDA's farmer payment database last week; said to be the only system hit; USDA expects normal operations by end of today",
+      "Joe doesn't expect it to delay the $8B farmer fuel relief payments; FBI also reported a breach Friday (2nd since Sept)"
+    ]},
+    {"topic": "Charts", "bullets": [
+      "Mar corn hovering just above the early-July low of 4.41; a retest is possible",
+      "Jan beans tagged a trendline overnight; a close above ~12.31 would look friendly",
+      "SRW wheat: new Black Sea-related attacks over the weekend, truce looks off, but no price impact; big US winter wheat crop expected and zero added US export demand"
+    ]},
+    {"topic": "Fund positioning (COT, week to Nov 17)", "bullets": [
+      "Managed money sold 11k corn, 4k soybeans, 4k SRW wheat",
+      "Combined corn/beans/SRW: record net long of 677k (week of Sep 8) has been liquidated by 682k; now net short ~5k",
+      "Wheat specs at ~50% of record net short despite Black Sea disruption"
+    ]},
+    {"topic": "Exports / demand", "bullets": [
+      "Flash sale: 100k MT soybean cake/meal to Spain for current MY",
+      "Soymeal export sales at a record pace, barely above last year; strong crush driven by biofuel oil demand; top buyers Philippines, Mexico, Colombia, Canada, Vietnam"
+    ]},
+    {"topic": "Cattle", "bullets": [
+      "Cattle on Feed (Nov 1): 11.59M head, −1% y/y and vs expectations",
+      "Oct placements 1.89M, −~7% y/y, ~4% below expectations, 4th straight record monthly low; marketings 1.62M, −~5% y/y, in line",
+      "Viewed as bullish, but outside markets (stocks) seen dominating; last month's bullish report got little reaction"
+    ]}
+  ],
+  "flags": [
+    "Auto-captions render Cattle on Feed as “Catalon feed” and the Brazilian real as “realale”",
+    "S&P trendline level captioned as “56.87”; likely ~5,687",
+    "Soybean quote captioned as “12:25”; read as ~12.25"
+  ]
+}
