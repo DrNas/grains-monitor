@@ -1,0 +1,88 @@
+{
+  "date": "2026-11-24",
+  "channel": "Grain Markets and Other Stuff",
+  "title": "Trump: \"Buy Bigger Tractors\" (Again!) + Jensen Saves the Stock Market",
+  "url": "https://www.youtube.com/watch?v=rgawAECowHI",
+  "published": "2026-11-24",
+  "sections": [
+    {
+      "topic": "Overnight (5:25am CT)",
+      "bullets": [
+        "Mar corn +0.25c at 4.50 1/2",
+        "Jan beans +3.25c at 12.32 1/4",
+        "Mar CBOT wheat unch 5.95 1/2; Mar KC -0.5c 6.37; Mar MGEX unch 6.43 1/4"
+      ]
+    },
+    {
+      "topic": "China / trade",
+      "bullets": [
+        "Trump on CNBC claims a new China deal boosting US ag (esp. soybean) purchases; says he asked Xi to double prior amounts; no volumes, dollar values or timeline given",
+        "China bean sales officially 17.3 MMT (hosts think >20 MMT) vs 25 MMT commitment; 10.23 MMT shipped this MY, slightly below each of the last 4 years",
+        "Little progress on separate $17B additional US ag purchase commitment",
+        "Hosts skeptical of the 'bigger tractors' line: high inputs (diesel, fertilizer), crop prices below cost of production, farmers reliant on annual ad hoc aid (this year 'farmer fuel relief')"
+      ]
+    },
+    {
+      "topic": "Price action",
+      "bullets": [
+        "Mon: Jan beans +8c to ~12.29 on strong meal demand (slow harvest forced some crush slowdowns/shutdowns); Mar corn +1c to ~4.50; wheat mixed on Black Sea shipping disruptions",
+        "Strong USD weighing on whole grain complex",
+        "Jan beans poking above minor trendline; key level is post-report high 12.40 3/4",
+        "Corn stuck: strong dollar, soft export demand; some post-harvest basis firming as farmers hold bushels in bins",
+        "Wheat: big acreage, good ratings, no extra export demand despite Black Sea issues"
+      ]
+    },
+    {
+      "topic": "Exports",
+      "bullets": [
+        "Inspections wk ending Nov 19: beans 57 mbu (-10% w/w, YTD +59% y/y); corn 47 mbu (+37% w/w, beat expectations, YTD -22% y/y); wheat 13 mbu (-17% w/w, YTD -33% y/y)",
+        "Corn sales down sharply: main export concern; wheat also problematic; beans much improved, tracking 23/24-like pace",
+        "Flash sale: 4 mbu US white wheat to unknown destinations"
+      ]
+    },
+    {
+      "topic": "Crop progress",
+      "bullets": [
+        "Corn harvest 94% (prior 88%, 5yr avg 96%, trade est 95%)",
+        "Laggards: IA 92%, OH 85%, MI 80%, SD 87%",
+        "Winter wheat planted 95%; G/E 54% (prior 53%, 5yr avg 45%), up 10 pts since start of month; MO, OH, MI above 70% G/E"
+      ]
+    },
+    {
+      "topic": "South America weather",
+      "bullets": [
+        "AgRural: Brazil beans 86% planted (prior wk 78%, LY 81%); first-crop corn 90% (prior 81%, LY 93%)",
+        "Best planting conditions of the season so far despite super El Nino fears",
+        "Mato Grosso rain 100% of normal over 14 days; Parana 127% with heavy rain forecast in south for 7 and 8-14 day windows: a possible hint of trouble",
+        "Joe: the bean market will signal Brazil problems before forecasts do; not signaling yet",
+        "USDA: Brazil ~42% of world soy production, ~61% of exports"
+      ]
+    },
+    {
+      "topic": "Cattle / outside markets",
+      "bullets": [
+        "Live cattle -0.28 to +1.80; feeders -0.03 to -0.85",
+        "Nvidia +31% Mon after board reinstated Jensen Huang as CEO following Trump intervention (~$950B mkt cap); still -11.5% YTD, -32% from ATH",
+        "Mon: S&P +4.7% (best day since Apr 2025) after -8.6% last week; Nasdaq +6.5%, Dow +3%. Tue a.m.: S&P -0.8%, Nasdaq -1.6%",
+        "WTI -~4% Mon to ~$80 (lowest since Aug) on easing US-Iran tensions and glut talk; ~$80.18 Tue a.m.; -33% from $119 March high but +41% YTD",
+        "Trump giving Iran talks until year-end, warns military action could resume next year",
+        "AAA gasoline $3.61 (-89c from $4.50 May high); diesel $5.80 (-73c from $6.53 Sept high)",
+        "Bloomberg Commodity Index -14.3% from Sept high (-4% last week)"
+      ]
+    },
+    {
+      "topic": "Rates / Fed",
+      "bullets": [
+        "Next FOMC Dec 9; hosts cite ~98% priced odds of a HIKE",
+        "Joe: much inflation is energy-driven and energy is now falling; CPI/PPI backward looking, so Fed should be careful with further hikes",
+        "Treasuries slightly higher Tue a.m. (direction of yields unclear from audio)"
+      ]
+    }
+  ],
+  "flags": [
+    "Captions render prices as times (e.g. '12:32 and a quarter' = 12.32 1/4)",
+    "'a rural'/'Agural' = AgRural; 'Migroso' = Mato Grosso; 'Pirania' = Parana",
+    "'Crude unchanged at 818' read as $80.18",
+    "'98% chance they hike' reproduced as stated; worth checking against FedWatch"
+  ]
+}
