@@ -68,8 +68,17 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         with:
           path: _site
+      # GitHub's Pages deploy sometimes can't find the artifact it was just given ("No artifacts named
+      # github-pages"), a hiccup on GitHub's side. Wait and try once more before failing the run.
       - id: deploy
         if: steps.gate.outputs.skip != 'true'
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+      - name: Wait before retrying the deploy
+        if: steps.gate.outputs.skip != 'true' && steps.deploy.outcome == 'failure'
+        run: sleep 30
+      - id: deploy_retry
+        if: steps.gate.outputs.skip != 'true' && steps.deploy.outcome == 'failure'
         uses: actions/deploy-pages@v4
       - name: Flag sources that failed today
         if: steps.gate.outputs.skip != 'true' && steps.build.outputs.failed != ''
